@@ -141,9 +141,14 @@ try {
 
 ```php
 use NfseNacional\Client\NfseClient;
+use NfseNacional\Entity\DpsEntity;
+use NfseNacional\Entity\Prestador;
+use NfseNacional\Entity\Tomador;
+use NfseNacional\Entity\Endereco;
+use NfseNacional\Entity\Contato;
+use NfseNacional\Entity\Telefone;
+use NfseNacional\Entity\Email;
 use NfseNacional\Models\Enums\TipoAmbiente;
-use NfseNacional\Utils\XmlHandler;
-use NfseNacional\Utils\CompressionHandler;
 
 $client = new NfseClient(
     certificatePath: '/caminho/para/certificado.pfx',
@@ -152,55 +157,73 @@ $client = new NfseClient(
 );
 
 try {
-    // 1. Preparar o XML da DPS (Declaração de Prestação de Serviços)
-    // Nota: Este é um exemplo simplificado. O XML real deve seguir o schema oficial da NFS-e
-    $dpsXml = '<?xml version="1.0" encoding="UTF-8"?>
-<DPS xmlns="http://www.abrasf.org.br/nfse.xsd">
-    <InfDPS Id="DPS001">
-        <IdentificacaoDPS>
-            <Numero>1</Numero>
-            <Serie>1</Serie>
-        </IdentificacaoDPS>
-        <DataEmissao>2025-01-15T10:00:00</DataEmissao>
-        <Prestador>
-            <CpfCnpj>
-                <Cnpj>12345678000190</Cnpj>
-            </CpfCnpj>
-            <RazaoSocial>Empresa Prestadora de Serviços LTDA</RazaoSocial>
-        </Prestador>
-        <Tomador>
-            <CpfCnpj>
-                <Cnpj>98765432000111</Cnpj>
-            </CpfCnpj>
-            <RazaoSocial>Cliente Tomador de Serviços LTDA</RazaoSocial>
-        </Tomador>
-        <Servico>
-            <Valores>
-                <ValorServicos>1000.00</ValorServicos>
-            </Valores>
-            <ItemListaServico>1401</ItemListaServico>
-            <Discriminacao>Serviço de desenvolvimento de software</Discriminacao>
-        </Servico>
-    </InfDPS>
-</DPS>';
+    // 1. Criar entidade Prestador
+    $prestador = new Prestador(
+        cnpj: '12345678000190',
+        razaoSocial: 'Empresa Prestadora de Serviços LTDA',
+        nomeFantasia: 'Minha Empresa',
+        inscricaoMunicipal: '123456',
+        endereco: new Endereco(
+            endereco: 'Rua da Empresa, 456',
+            numero: '456',
+            bairro: 'Centro',
+            codigoMunicipio: '3550308',
+            uf: 'SP',
+            cep: '01000000'
+        ),
+        contato: new Contato(
+            telefone: new Telefone('11', '988888888'),
+            email: new Email('contato@empresa.com.br')
+        )
+    );
 
-    // 2. Validar o XML da DPS
-    if (!XmlHandler::isValid($dpsXml)) {
-        throw new \Exception("XML da DPS inválido");
-    }
+    // 2. Criar entidade Tomador
+    $tomador = new Tomador(
+        cnpj: '98765432000111',
+        razaoSocial: 'Cliente Tomador de Serviços LTDA',
+        endereco: new Endereco(
+            endereco: 'Rua Exemplo, 123',
+            numero: '123',
+            bairro: 'Centro',
+            codigoMunicipio: '3550308',
+            uf: 'SP',
+            cep: '01000000'
+        ),
+        contato: new Contato(
+            telefone: Telefone::fromString('11999999999'),
+            email: Email::fromString('contato@cliente.com.br')
+        )
+    );
 
-    // 3. Assinar o XML com certificado digital (XMLDSIG)
-    // Nota: A assinatura XMLDSIG deve ser implementada usando robrichards/xmlseclibs
-    // Este é um exemplo conceitual - a implementação real requer configuração adequada
-    $dpsAssinado = $dpsXml; // Em produção, aqui seria a DPS assinada
+    // 3. Criar a entidade DPS
+    $dps = new DpsEntity(
+        numero: '1',
+        serie: '1',
+        dataEmissao: new \DateTime(),
+        prestador: $prestador,
+        tomador: $tomador,
+        servico: [
+            'valores' => [
+                'valorServicos' => 1000.00,
+            ],
+            'itemListaServico' => '1401',
+            'discriminacao' => 'Serviço de desenvolvimento de software',
+            'codigoMunicipio' => '3550308',
+        ]
+    );
 
-    // 4. Comprimir e codificar em base64 (conforme padrão da API)
-    $dpsComprimido = CompressionHandler::compressAndEncode($dpsAssinado);
+    // 2. Validar a DPS (opcional, mas recomendado)
+    $dps->validate();
 
-    // 5. Enviar para emissão
-    $nfse = $client->emitirNfse($dpsComprimido);
+    // 3. Enviar para emissão
+    // O método emitirNfse automaticamente:
+    // - Valida a entidade
+    // - Assina com o certificado digital
+    // - Comprime e codifica em base64
+    // - Envia para a API
+    $nfse = $client->emitirNfse($dps);
 
-    // 6. Processar resultado
+    // 4. Processar resultado
     echo "NFS-e emitida com sucesso!\n";
     echo "Chave de Acesso: " . $nfse->chaveAcesso . "\n";
     echo "Número: " . $nfse->numero . "\n";
@@ -209,7 +232,7 @@ try {
     echo "Data de Emissão: " . $nfse->dataEmissao->format('d/m/Y H:i:s') . "\n";
     echo "Situação: " . $nfse->situacao->value . "\n";
 
-    // 7. Salvar XML da NFS-e (se disponível)
+    // 5. Salvar XML da NFS-e (se disponível)
     if ($nfse->xml) {
         file_put_contents('nfse_' . $nfse->numero . '.xml', $nfse->xml);
         echo "XML salvo com sucesso\n";
@@ -220,6 +243,8 @@ try {
     echo "Status HTTP: " . $e->getStatusCode() . "\n";
 } catch (\NfseNacional\Exceptions\CertificateException $e) {
     echo "Erro no certificado: " . $e->getMessage() . "\n";
+} catch (\NfseNacional\Exceptions\ValidationException $e) {
+    echo "Erro de validação: " . $e->getMessage() . "\n";
 } catch (\Exception $e) {
     echo "Erro: " . $e->getMessage() . "\n";
 }
@@ -229,8 +254,8 @@ try {
 
 ```php
 use NfseNacional\Client\NfseClient;
+use NfseNacional\Entity\DpsEntity;
 use NfseNacional\Models\Enums\TipoAmbiente;
-use NfseNacional\Utils\CompressionHandler;
 
 $client = new NfseClient(
     certificatePath: '/caminho/para/certificado.pfx',
@@ -240,19 +265,50 @@ $client = new NfseClient(
 
 try {
     // Preparar múltiplas DPS
+    $prestador = new Prestador(
+        cnpj: '12345678000190',
+        razaoSocial: 'Empresa LTDA'
+    );
+
+    $tomador = new Tomador(
+        cnpj: '98765432000111',
+        razaoSocial: 'Cliente LTDA'
+    );
+
     $dpsList = [];
 
     // DPS 1
-    $dps1Xml = '<?xml version="1.0" encoding="UTF-8"?>...'; // XML da primeira DPS
-    $dps1Assinado = $dps1Xml; // Assinar com certificado
-    $dpsList[] = CompressionHandler::compressAndEncode($dps1Assinado);
+    $dps1 = new DpsEntity(
+        numero: '1',
+        serie: '1',
+        dataEmissao: new \DateTime(),
+        prestador: $prestador,
+        tomador: $tomador,
+        servico: [
+            'valores' => ['valorServicos' => 1000.00],
+            'itemListaServico' => '1401',
+            'discriminacao' => 'Serviço 1',
+        ]
+    );
+    $dpsList[] = $dps1;
 
     // DPS 2
-    $dps2Xml = '<?xml version="1.0" encoding="UTF-8"?>...'; // XML da segunda DPS
-    $dps2Assinado = $dps2Xml; // Assinar com certificado
-    $dpsList[] = CompressionHandler::compressAndEncode($dps2Assinado);
+    $dps2 = new DpsEntity(
+        numero: '2',
+        serie: '1',
+        dataEmissao: new \DateTime(),
+        prestador: $prestador,
+        tomador: $tomador,
+        servico: [
+            'valores' => ['valorServicos' => 2000.00],
+            'itemListaServico' => '1401',
+            'discriminacao' => 'Serviço 2',
+        ]
+    );
+    $dpsList[] = $dps2;
 
     // Enviar lote
+    // O método emitirLoteNfse automaticamente valida, assina e comprime cada DPS
     $nfseList = $client->emitirLoteNfse($dpsList);
 
     // Processar resultados
@@ -264,6 +320,8 @@ try {
 
 } catch (\NfseNacional\Exceptions\ApiException $e) {
     echo "Erro na API: " . $e->getMessage() . "\n";
+} catch (\NfseNacional\Exceptions\ValidationException $e) {
+    echo "Erro de validação: " . $e->getMessage() . "\n";
 }
 ```
 

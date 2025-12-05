@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NfseNacional\Client;
 
+use NfseNacional\Entity\XmlInterface;
 use NfseNacional\Exceptions\ApiException;
 use NfseNacional\Exceptions\CertificateException;
 use NfseNacional\Models\Enums\TipoAmbiente;
@@ -251,11 +252,37 @@ class NfseClient
     /**
      * Envia DPS para emissão de NFS-e
      *
-     * @param string $dpsXml XML da DPS assinado e comprimido (GZip + base64)
+     * @param XmlInterface $dpsEntity Entidade DPS
      * @return Nfse
      * @throws ApiException
      */
-    public function emitirNfse(string $dpsXml): Nfse
+    public function emitirNfse(XmlInterface $dpsEntity): Nfse
+    {
+        // Valida a entidade
+        $dpsEntity->validate();
+
+        // Converte para XML assinado e comprimido usando o certificado do cliente
+        $certificate = $this->certificateHandler->getCertificate();
+        $privateKey = $this->certificateHandler->getPrivateKey();
+        $dpsXml = $dpsEntity->toSignedAndCompressed($certificate, $privateKey);
+
+        $response = $this->makeRequest('POST', '/DPS', [
+            'json' => ['DpsXml' => $dpsXml],
+        ]);
+
+        $data = $this->parseJsonResponse($response);
+        return Nfse::fromArray($data);
+    }
+
+    /**
+     * Envia DPS para emissão de NFS-e (método legado - aceita string)
+     *
+     * @param string $dpsXml XML da DPS assinado e comprimido (GZip + base64)
+     * @return Nfse
+     * @throws ApiException
+     * @deprecated Use emitirNfse(XmlInterface) ao invés deste método
+     */
+    public function emitirNfseFromString(string $dpsXml): Nfse
     {
         $response = $this->makeRequest('POST', '/DPS', [
             'json' => ['DpsXml' => $dpsXml],
@@ -268,11 +295,53 @@ class NfseClient
     /**
      * Envia lote de DPS para processamento
      *
-     * @param array $dpsList Array de XMLs de DPS (GZip + base64)
+     * @param array $dpsEntities Array de entidades DPS (XmlInterface)
      * @return array Array de Nfse processadas
      * @throws ApiException
      */
-    public function emitirLoteNfse(array $dpsList): array
+    public function emitirLoteNfse(array $dpsEntities): array
+    {
+        $certificate = $this->certificateHandler->getCertificate();
+        $privateKey = $this->certificateHandler->getPrivateKey();
+        $dpsList = [];
+
+        foreach ($dpsEntities as $dpsEntity) {
+            if (!$dpsEntity instanceof XmlInterface) {
+                throw new ApiException("Todos os itens do lote devem ser instâncias de XmlInterface");
+            }
+
+            // Valida cada entidade
+            $dpsEntity->validate();
+
+            // Converte para XML assinado e comprimido
+            $dpsList[] = $dpsEntity->toSignedAndCompressed($certificate, $privateKey);
+        }
+
+        $response = $this->makeRequest('POST', '/DPS/Lote', [
+            'json' => ['DpsList' => $dpsList],
+        ]);
+
+        $data = $this->parseJsonResponse($response);
+        $nfseList = [];
+
+        if (isset($data['NfseList']) && is_array($data['NfseList'])) {
+            foreach ($data['NfseList'] as $nfseData) {
+                $nfseList[] = Nfse::fromArray($nfseData);
+            }
+        }
+
+        return $nfseList;
+    }
+
+    /**
+     * Envia lote de DPS para processamento (método legado - aceita array de strings)
+     *
+     * @param array $dpsList Array de XMLs de DPS (GZip + base64)
+     * @return array Array de Nfse processadas
+     * @throws ApiException
+     * @deprecated Use emitirLoteNfse(array<XmlInterface>) ao invés deste método
+     */
+    public function emitirLoteNfseFromStrings(array $dpsList): array
     {
         $response = $this->makeRequest('POST', '/DPS/Lote', [
             'json' => ['DpsList' => $dpsList],
@@ -524,12 +593,20 @@ class NfseClient
      * Substitui uma NFS-e
      *
      * @param string $chaveAcesso Chave de acesso da NFS-e a ser substituída
-     * @param string $dpsSubstituicaoXml XML da nova DPS (GZip + base64)
+     * @param XmlInterface $dpsSubstituicao Entidade DPS de substituição
      * @return Nfse Nova NFS-e gerada
      * @throws ApiException
      */
-    public function substituirNfse(string $chaveAcesso, string $dpsSubstituicaoXml): Nfse
+    public function substituirNfse(string $chaveAcesso, XmlInterface $dpsSubstituicao): Nfse
     {
+        // Valida a entidade
+        $dpsSubstituicao->validate();
+
+        // Converte para XML assinado e comprimido
+        $certificate = $this->certificateHandler->getCertificate();
+        $privateKey = $this->certificateHandler->getPrivateKey();
+        $dpsSubstituicaoXml = $dpsSubstituicao->toSignedAndCompressed($certificate, $privateKey);
+
         $response = $this->makeRequest('POST', "/NFSe/{$chaveAcesso}/Substituir", [
             'json' => ['DpsSubstituicaoXml' => $dpsSubstituicaoXml],
         ]);
@@ -799,12 +876,20 @@ class NfseClient
      * Substitui NFS-e emitida por decisão administrativa/judicial
      *
      * @param string $chaveAcesso
-     * @param string $dpsSubstituicaoXml XML da nova DPS
+     * @param XmlInterface $dpsSubstituicao Entidade DPS de substituição
      * @return Nfse
      * @throws ApiException
      */
-    public function substituirNfseDecisaoAdministrativa(string $chaveAcesso, string $dpsSubstituicaoXml): Nfse
+    public function substituirNfseDecisaoAdministrativa(string $chaveAcesso, XmlInterface $dpsSubstituicao): Nfse
     {
+        // Valida a entidade
+        $dpsSubstituicao->validate();
+
+        // Converte para XML assinado e comprimido
+        $certificate = $this->certificateHandler->getCertificate();
+        $privateKey = $this->certificateHandler->getPrivateKey();
+        $dpsSubstituicaoXml = $dpsSubstituicao->toSignedAndCompressed($certificate, $privateKey);
+
         $response = $this->makeRequest('POST', "/NFSe/DecisaoAdministrativa/{$chaveAcesso}/Substituir", [
             'json' => ['DpsSubstituicaoXml' => $dpsSubstituicaoXml],
         ]);
