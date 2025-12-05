@@ -5,7 +5,7 @@ Desenvolver um pacote PHP 8.3+ para integração com a API NFS-e do Governo Fede
 
 ## Informações do Pacote
 - **Repositório GitHub**: https://github.com/gildonei/nfse-nacional
-- **Nome do pacote Packagist**: `gildonei/nfse-nacional`
+- **Nome do pacote Packagist**: `nfse-nacional/nfse-nacional`
 - **Autor**: Gildonei M A Junior <gildonei.mendes@gmail.com>
 - **Licença**: MIT
 - **Versão PHP mínima**: 8.3+
