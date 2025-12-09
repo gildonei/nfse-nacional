@@ -2,7 +2,7 @@
 
 [![PHP Version](https://img.shields.io/badge/php-8.3%2B-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Packagist](https://img.shields.io/packagist/v/nfse-nacional/nfse-nacional.svg)](https://packagist.org/packages/nfse-nacional/nfse-nacional)
+[![Packagist](https://img.shields.io/packagist/v/gildonei/nfse-nacional.svg)](https://packagist.org/packages/gildonei/nfse-nacional)
 
 Pacote PHP para integração com a API NFS-e (Nota Fiscal de Serviço Eletrônica) do Governo Federal.
 
@@ -18,7 +18,7 @@ Pacote PHP para integração com a API NFS-e (Nota Fiscal de Serviço Eletrônic
 ## Instalação
 
 ```bash
-composer require nfse-nacional/nfse-nacional
+composer require gildonei/nfse-nacional
 ```
 
 ## Estrutura do Projeto (Clean Architecture)
