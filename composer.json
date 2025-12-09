@@ -1,5 +1,5 @@
 {
-    "name": "nfse-nacional/nfse-nacional",
+    "name": "gildonei/nfse-nacional",
     "description": "Pacote PHP para integração com a API NFS-e do Governo Federal",
     "type": "library",
     "license": "MIT",
