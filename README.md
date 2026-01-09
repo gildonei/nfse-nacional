@@ -6,22 +6,29 @@ Biblioteca PHP para emissão de Nota Fiscal de Serviço Eletrônica (NFS-e) Naci
 
 - ✅ Clean Architecture
 - ✅ PHP 8.3+
-- ✅ Suporte a certificado digital ICP-Brasil
-- ✅ Assinatura XML digital
+- ✅ Suporte a certificado digital ICP-Brasil (Value Object)
+- ✅ Assinatura XML digital (XMLDSIG)
+- ✅ Autenticação SSL/TLS com certificado digital
+- ✅ Integração com API Sefin Nacional
+- ✅ Compressão GZip e codificação Base64
 - ✅ Validação de dados com Enums type-safe
 - ✅ Type-safe com tipos estritos
 - ✅ Geração automática de IDs conforme padrão NFS-e Nacional
 - ✅ Validação de campos obrigatórios
 - ✅ Suporte completo a CPF e CNPJ
 - ✅ Timezone padrão: Brasília (America/Sao_Paulo)
+- ✅ Encoding UTF-8 garantido
+- ✅ XML otimizado (sem quebras de linha)
 
 ## Requisitos
 
 - PHP 8.3 ou superior
-- Certificado digital ICP-Brasil (A1 ou A3) com CNPJ
+- Certificado digital ICP-Brasil (A1 ou A3) com CNPJ (.pfx ou .p12)
 - Extensão OpenSSL habilitada
 - Extensão ZIP habilitada (para compressão GZip)
 - Extensão DOM habilitada (para manipulação XML)
+- Extensão mbstring habilitada (para validação de encoding)
+- Guzzle HTTP Client (via Composer)
 
 ## Instalação
 
@@ -33,42 +40,56 @@ composer require gildonei/nfse-nacional
 
 ```
 src/
-└── Domain/                    # Regras de negócio
-    ├── Entity/               # Entidades do domínio
-    │   ├── Dps.php          # Documento de Prestação de Serviços
-    │   ├── Prestador.php    # Prestador de serviços
-    │   ├── Tomador.php      # Tomador de serviços
-    │   ├── Emitente.php     # Emitente da NFS-e
-    │   └── Pessoa.php       # Classe base para pessoas
-    │
-    ├── Enum/                 # Enumerações para validação
-    │   ├── AmbienteGeradorNfse.php
-    │   ├── ModoPrestacao.php
-    │   ├── MotivoNaoInformarNif.php
-    │   ├── OptanteSimplesNacional.php
-    │   ├── ProcessoEmissao.php
-    │   ├── RegimeEspecialTributacaoMunicipal.php
-    │   ├── RegimeTributacaoSimplesNacional.php
-    │   ├── SituacoesPossiveisNfse.php
-    │   ├── TipoBeneficioMunicipal.php
-    │   ├── TipoEmissaoNfse.php
-    │   ├── TipoEmitente.php
-    │   ├── TributacaoIssqn.php
-    │   └── VinculoEntrePartes.php
-    │
-    ├── ValueObject/          # Value Objects
-    │   ├── Cpf.php          # Validação e formatação de CPF
-    │   ├── Cnpj.php         # Validação e formatação de CNPJ
-    │   ├── Email.php        # Validação de e-mail
-    │   ├── Endereco.php     # Endereço completo
-    │   └── Telefone.php     # Telefone com DDD
-    │
-    ├── Xml/                  # Geração de XML
-    │   └── DpsXml.php       # Gerador de XML da DPS
-    │
-    ├── Contract/             # Interfaces de domínio
-    ├── Factory/              # Factories
-    └── Exception/            # Exceções de domínio
+├── Domain/                    # Regras de negócio
+│   ├── Entity/               # Entidades do domínio
+│   │   ├── Dps.php          # Documento de Prestação de Serviços
+│   │   ├── Prestador.php    # Prestador de serviços
+│   │   ├── Tomador.php      # Tomador de serviços
+│   │   ├── Emitente.php     # Emitente da NFS-e
+│   │   └── Pessoa.php       # Classe base para pessoas
+│   │
+│   ├── Enum/                 # Enumerações para validação
+│   │   ├── AmbienteGeradorNfse.php
+│   │   ├── ModoPrestacao.php
+│   │   ├── MotivoNaoInformarNif.php
+│   │   ├── OptanteSimplesNacional.php
+│   │   ├── ProcessoEmissao.php
+│   │   ├── RegimeEspecialTributacaoMunicipal.php
+│   │   ├── RegimeTributacaoSimplesNacional.php
+│   │   ├── SituacoesPossiveisNfse.php
+│   │   ├── TipoBeneficioMunicipal.php
+│   │   ├── TipoEmissaoNfse.php
+│   │   ├── TipoEmitente.php
+│   │   ├── TributacaoIssqn.php
+│   │   └── VinculoEntrePartes.php
+│   │
+│   ├── ValueObject/          # Value Objects
+│   │   ├── Certificado.php  # Certificado digital PKCS#12
+│   │   ├── Cpf.php          # Validação e formatação de CPF
+│   │   ├── Cnpj.php         # Validação e formatação de CNPJ
+│   │   ├── Email.php        # Validação de e-mail
+│   │   ├── Endereco.php     # Endereço completo
+│   │   └── Telefone.php     # Telefone com DDD
+│   │
+│   ├── Xml/                  # Geração de XML
+│   │   └── DpsXml.php       # Gerador de XML da DPS
+│   │
+│   ├── Contract/             # Interfaces de domínio
+│   │   ├── AssinadorXmlInterface.php
+│   │   └── HttpClientInterface.php
+│   │
+│   ├── Factory/              # Factories
+│   └── Exception/            # Exceções de domínio
+│
+├── Application/              # Camada de aplicação
+│   └── Service/             # Serviços de aplicação
+│       └── SefinNacionalService.php  # Serviço de integração com API
+│
+└── Infrastructure/           # Implementações técnicas
+    ├── Security/            # Segurança
+    │   └── AssinadorXml.php # Assinatura XML digital
+    └── Http/                # Comunicação HTTP
+        └── HttpClient.php   # Cliente HTTP (Guzzle)
 
 docs/
 └── emissao-dps.php          # Exemplo completo de emissão de DPS
@@ -78,7 +99,7 @@ docs/
 
 ### Exemplo Completo
 
-Consulte o arquivo `docs/emissao-dps.php` para um exemplo completo e detalhado de como criar e gerar uma DPS.
+Consulte o arquivo `docs/emissao-dps.php` para um exemplo completo e detalhado de como criar, assinar e enviar uma DPS para a API Sefin Nacional.
 
 ### Exemplo Simplificado
 
@@ -95,12 +116,15 @@ use NfseNacional\Domain\Enum\AmbienteGeradorNfse;
 use NfseNacional\Domain\Enum\SituacoesPossiveisNfse;
 use NfseNacional\Domain\Enum\OptanteSimplesNacional;
 use NfseNacional\Domain\Enum\RegimeEspecialTributacaoMunicipal;
+use NfseNacional\Domain\ValueObject\Certificado;
 use NfseNacional\Domain\ValueObject\Cnpj;
 use NfseNacional\Domain\ValueObject\Cpf;
 use NfseNacional\Domain\ValueObject\Endereco;
 use NfseNacional\Domain\ValueObject\Email;
 use NfseNacional\Domain\ValueObject\Telefone;
 use NfseNacional\Domain\Xml\DpsXml;
+use NfseNacional\Application\Service\SefinNacionalService;
+use NfseNacional\Infrastructure\Security\AssinadorXml;
 use DateTime;
 use DateTimeZone;
 
@@ -147,10 +171,23 @@ $dps->definirPrestador($prestador)
     ->definirValorServico(1000.00)
     ->definirValorRecebido(1000.00);
 
-// 4. Gerar XML
+// 4. Criar Certificado
+$certificado = new Certificado('/caminho/certificado.pfx', 'senha123');
+
+// 5. Criar Emitente
+$emitente = new Emitente(
+    nome: 'Empresa Emitente LTDA',
+    documento: new Cnpj('50600661000126'),
+    endereco: $prestador->obterEndereco(),
+    telefone: new Telefone(codigoPais: 55, codigoArea: 48, numero: 33334444),
+    email: 'emitente@empresa.com.br',
+    certificado: $certificado
+);
+
+// 6. Gerar XML
 $dpsXml = new DpsXml(
     dps: $dps,
-    emitente: null, // Opcional - se null, usa o prestador
+    emitente: $emitente,
     nNFSe: 1,
     processoEmissao: ProcessoEmissao::AplicativoContribuinte,
     tipoEmissaoNfse: TipoEmissaoNfse::EmissaoNormal,
@@ -158,8 +195,16 @@ $dpsXml = new DpsXml(
     situacaoPossivelNfse: SituacoesPossiveisNfse::NfseGerada
 );
 
-$xmlString = $dpsXml->render();
-echo $xmlString;
+// 7. Assinar e Enviar para API
+$assinador = new AssinadorXml();
+$sefinService = new SefinNacionalService(
+    emitente: $emitente,
+    assinador: $assinador,
+    tipoAmbiente: SefinNacionalService::AMBIENTE_HOMOLOGACAO
+);
+
+$resposta = $sefinService->enviarDps($dpsXml);
+print_r($resposta);
 ```
 
 ## Enums Disponíveis
@@ -262,6 +307,53 @@ O campo `tpEmit` é determinado automaticamente pela comparação dos documentos
 ## Timezone
 
 O timezone padrão utilizado é **Brasília (America/Sao_Paulo)** para todos os campos de data/hora.
+
+## Certificado Digital
+
+O certificado digital é encapsulado em um Value Object `Certificado` que:
+- Valida o certificado PKCS#12
+- Gerencia o conteúdo e a senha de forma segura
+- Pode ser criado a partir de caminho de arquivo ou conteúdo
+
+```php
+// Criar certificado a partir de arquivo
+$certificado = new Certificado('/caminho/certificado.pfx', 'senha123');
+
+// Validar certificado
+$certificado->validar();
+```
+
+## Integração com API Sefin Nacional
+
+O `SefinNacionalService` fornece métodos para integração com a API:
+
+### Métodos Disponíveis
+
+- `enviarDps(DpsXml $dpsXml)` - Envia DPS e gera NFS-e
+- `consultarDps(string $idDps)` - Consulta chave de acesso pelo ID do DPS
+- `verificarDps(string $idDps)` - Verifica se NFS-e foi emitida
+- `consultarNfse(string $chaveAcesso)` - Consulta NFS-e pela chave de acesso
+- `enviarNfseDecisaoJudicial(string $xmlNfseAssinado)` - Envia NFS-e com decisão judicial
+- `registrarEvento(string $chaveAcesso, string $xmlEventoAssinado)` - Registra evento na NFS-e
+- `consultarEvento(string $chaveAcesso, int $tipoEvento, int $numSeqEvento)` - Consulta evento específico
+
+### Ambientes
+
+- `SefinNacionalService::AMBIENTE_PRODUCAO` (1) - Ambiente de produção
+- `SefinNacionalService::AMBIENTE_HOMOLOGACAO` (2) - Ambiente de homologação
+
+### Autenticação SSL/TLS
+
+O serviço utiliza automaticamente o certificado do emitente para autenticação SSL/TLS em todas as requisições HTTP.
+
+## Processamento de XML
+
+O XML gerado é processado antes do envio:
+- ✅ Encoding UTF-8 garantido
+- ✅ Quebras de linha removidas
+- ✅ Espaços em branco otimizados
+- ✅ Compressão GZip
+- ✅ Codificação Base64
 
 ## Exemplo Completo
 
