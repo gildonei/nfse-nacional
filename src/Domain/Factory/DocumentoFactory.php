@@ -4,88 +4,86 @@ declare(strict_types=1);
 
 namespace NfseNacional\Domain\Factory;
 
-use NfseNacional\Domain\ValueObject\Documento\Cnpj;
-use NfseNacional\Domain\ValueObject\Documento\Cpf;
-use NfseNacional\Domain\ValueObject\Documento\DocumentoInterface;
+use InvalidArgumentException;
+use NfseNacional\Domain\Contract\DocumentoInterface;
+use NfseNacional\Domain\ValueObject\Cpf;
+use NfseNacional\Domain\ValueObject\Cnpj;
 
 /**
- * Factory para criar instâncias de DocumentoInterface baseado no número de caracteres
+ * Factory para criação de documentos (CPF/CNPJ)
+ *
+ * @package NfseNacional\Domain\Factory
  */
 class DocumentoFactory
 {
     /**
-     * Cria uma instância de DocumentoInterface baseado no número de caracteres
-     * - 11 caracteres: CPF
-     * - 14 caracteres: CNPJ
+     * Cria uma instância de CPF ou CNPJ baseado na quantidade de dígitos
      *
-     * @param string $documento Documento com ou sem formatação
+     * @param string $documento
      * @return DocumentoInterface
-     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     public static function criar(string $documento): DocumentoInterface
     {
-        $numeros = preg_replace('/\D/', '', $documento);
-        $tamanho = strlen($numeros);
+        // Remove formatação
+        $documentoLimpo = preg_replace('/[^0-9]/', '', $documento);
 
-        if ($tamanho === 11) {
-            return new Cpf($numeros);
+        if (empty($documentoLimpo)) {
+            throw new InvalidArgumentException('Documento está vazio!');
         }
 
-        if ($tamanho === 14) {
-            return new Cnpj($numeros);
-        }
+        $quantidadeDigitos = strlen($documentoLimpo);
 
-        throw new \InvalidArgumentException(
-            "Documento inválido. Deve ter 11 dígitos (CPF) ou 14 dígitos (CNPJ). Recebido: {$tamanho} dígitos"
-        );
+        return match ($quantidadeDigitos) {
+            11 => new Cpf($documento),
+            14 => new Cnpj($documento),
+            default => throw new InvalidArgumentException(
+                sprintf(
+                    'Documento inválido! CPF deve ter 11 dígitos e CNPJ deve ter 14 dígitos. ' .
+                    'Documento informado possui %d dígito(s).',
+                    $quantidadeDigitos
+                )
+            ),
+        };
     }
 
     /**
-     * Cria a partir de um array
+     * Tenta criar uma instância de CPF ou CNPJ
      *
-     * @param array<string, mixed> $data
-     * @return DocumentoInterface
-     * @throws \InvalidArgumentException
+     * @param string $documento
+     * @return DocumentoInterface|null Retorna null se o documento for inválido
      */
-    public static function fromArray(array $data): DocumentoInterface
+    public static function tentarCriar(string $documento): ?DocumentoInterface
     {
-        // Tenta CPF primeiro
-        if (isset($data['cpf']) || isset($data['Cpf']) || isset($data['CPF'])) {
-            $cpf = $data['cpf'] ?? $data['Cpf'] ?? $data['CPF'];
-            return new Cpf($cpf);
-        }
-
-        // Tenta CNPJ
-        if (isset($data['cnpj']) || isset($data['Cnpj']) || isset($data['CNPJ'])) {
-            $cnpj = $data['cnpj'] ?? $data['Cnpj'] ?? $data['CNPJ'];
-            return new Cnpj($cnpj);
-        }
-
-        // Tenta documento genérico
-        if (isset($data['documento']) || isset($data['Documento'])) {
-            $documento = $data['documento'] ?? $data['Documento'];
+        try {
             return self::criar($documento);
+        } catch (InvalidArgumentException) {
+            return null;
         }
-
-        throw new \InvalidArgumentException("Nenhum documento válido encontrado no array");
     }
 
     /**
-     * Verifica se o documento é um CPF válido
+     * Verifica se o documento é um CPF
+     *
+     * @param string $documento
+     * @return bool
      */
-    public static function isCpf(string $documento): bool
+    public static function ehCpf(string $documento): bool
     {
-        $numeros = preg_replace('/\D/', '', $documento);
-        return strlen($numeros) === 11;
+        $documentoLimpo = preg_replace('/[^0-9]/', '', $documento);
+        return strlen($documentoLimpo) === 11;
     }
 
     /**
-     * Verifica se o documento é um CNPJ válido
+     * Verifica se o documento é um CNPJ
+     *
+     * @param string $documento
+     * @return bool
      */
-    public static function isCnpj(string $documento): bool
+    public static function ehCnpj(string $documento): bool
     {
-        $numeros = preg_replace('/\D/', '', $documento);
-        return strlen($numeros) === 14;
+        $documentoLimpo = preg_replace('/[^0-9]/', '', $documento);
+        return strlen($documentoLimpo) === 14;
     }
 }
 

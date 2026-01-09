@@ -1,8 +1,9 @@
 {
     "name": "gildonei/nfse-nacional",
-    "description": "Pacote PHP para integração com a API NFS-e do Governo Federal",
+    "description": "Emissor de Nota Fiscal de Serviço Eletrônica (NFS-e) Nacional em PHP",
     "type": "library",
     "license": "MIT",
+    "keywords": ["nfse", "nota-fiscal", "servico", "brasil", "receita-federal"],
     "authors": [
         {
             "name": "Gildonei M A Junior",
@@ -12,10 +13,9 @@
     "require": {
         "php": "^8.3",
         "guzzlehttp/guzzle": "^7.0",
-        "symfony/options-resolver": "^6.0|^7.0",
-        "psr/http-client": "^1.0",
-        "psr/http-message": "^1.0|^2.0",
-        "robrichards/xmlseclibs": "^3.1"
+        "robrichards/xmlseclibs": "^3.1",
+        "symfony/dotenv": "^7.4",
+        "symfony/var-dumper": "^7.4"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0"
@@ -37,4 +37,3 @@
     "minimum-stability": "stable",
     "prefer-stable": true
 }
-

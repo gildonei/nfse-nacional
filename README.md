@@ -1,12 +1,19 @@
-# NFS-e Nacional
+# NFS-e Nacional - Emissor de Nota Fiscal de Serviço Eletrônica
 
-[![PHP Version](https://img.shields.io/badge/php-8.3%2B-blue.svg)](https://www.php.net/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Packagist](https://img.shields.io/packagist/v/gildonei/nfse-nacional.svg)](https://packagist.org/packages/gildonei/nfse-nacional)
+Biblioteca PHP para emissão de Nota Fiscal de Serviço Eletrônica (NFS-e) Nacional, seguindo os padrões da Receita Federal do Brasil.
 
-Pacote PHP para integração com a API NFS-e (Nota Fiscal de Serviço Eletrônica) do Governo Federal.
+## Características
 
-**Arquitetura:** Clean Architecture com separação em camadas Domain, Application, Infrastructure e Shared.
+- ✅ Clean Architecture
+- ✅ PHP 8.3+
+- ✅ Suporte a certificado digital ICP-Brasil
+- ✅ Assinatura XML digital
+- ✅ Validação de dados com Enums type-safe
+- ✅ Type-safe com tipos estritos
+- ✅ Geração automática de IDs conforme padrão NFS-e Nacional
+- ✅ Validação de campos obrigatórios
+- ✅ Suporte completo a CPF e CNPJ
+- ✅ Timezone padrão: Brasília (America/Sao_Paulo)
 
 ## Requisitos
 
@@ -14,6 +21,7 @@ Pacote PHP para integração com a API NFS-e (Nota Fiscal de Serviço Eletrônic
 - Certificado digital ICP-Brasil (A1 ou A3) com CNPJ
 - Extensão OpenSSL habilitada
 - Extensão ZIP habilitada (para compressão GZip)
+- Extensão DOM habilitada (para manipulação XML)
 
 ## Instalação
 
@@ -21,333 +29,263 @@ Pacote PHP para integração com a API NFS-e (Nota Fiscal de Serviço Eletrônic
 composer require gildonei/nfse-nacional
 ```
 
-## Estrutura do Projeto (Clean Architecture)
+## Estrutura do Projeto
 
 ```
 src/
-├── Domain/                    # Regras de negócio
-│   ├── Entity/               # Entidades (Dps, Nfse, Prestador, Tomador)
-│   ├── ValueObject/          # Value Objects (Cpf, Cnpj, Telefone, Email)
-│   ├── Contract/             # Interfaces de domínio
-│   ├── Factory/              # Factories
-│   └── Exception/            # Exceções de domínio
-│
-├── Application/              # Casos de uso
-│   ├── UseCase/              # Use Cases (EmitirNfse, ConsultarNfse, etc.)
-│   ├── DTO/                  # Data Transfer Objects
-│   ├── Contract/             # Interfaces (Ports)
-│   └── Exception/            # Exceções de aplicação
-│
-├── Infrastructure/           # Implementações externas
-│   ├── Gateway/              # Gateway para API
-│   ├── Http/                 # Cliente HTTP
-│   ├── Security/             # Certificados
-│   ├── Xml/                  # Manipulação XML
-│   └── Compression/          # Compressão
-│
-└── Shared/                   # Código compartilhado
-    ├── Enum/                 # Enumerações
-    └── Exception/            # Exceções base
+└── Domain/                    # Regras de negócio
+    ├── Entity/               # Entidades do domínio
+    │   ├── Dps.php          # Documento de Prestação de Serviços
+    │   ├── Prestador.php    # Prestador de serviços
+    │   ├── Tomador.php      # Tomador de serviços
+    │   ├── Emitente.php     # Emitente da NFS-e
+    │   └── Pessoa.php       # Classe base para pessoas
+    │
+    ├── Enum/                 # Enumerações para validação
+    │   ├── AmbienteGeradorNfse.php
+    │   ├── ModoPrestacao.php
+    │   ├── MotivoNaoInformarNif.php
+    │   ├── OptanteSimplesNacional.php
+    │   ├── ProcessoEmissao.php
+    │   ├── RegimeEspecialTributacaoMunicipal.php
+    │   ├── RegimeTributacaoSimplesNacional.php
+    │   ├── SituacoesPossiveisNfse.php
+    │   ├── TipoBeneficioMunicipal.php
+    │   ├── TipoEmissaoNfse.php
+    │   ├── TipoEmitente.php
+    │   ├── TributacaoIssqn.php
+    │   └── VinculoEntrePartes.php
+    │
+    ├── ValueObject/          # Value Objects
+    │   ├── Cpf.php          # Validação e formatação de CPF
+    │   ├── Cnpj.php         # Validação e formatação de CNPJ
+    │   ├── Email.php        # Validação de e-mail
+    │   ├── Endereco.php     # Endereço completo
+    │   └── Telefone.php     # Telefone com DDD
+    │
+    ├── Xml/                  # Geração de XML
+    │   └── DpsXml.php       # Gerador de XML da DPS
+    │
+    ├── Contract/             # Interfaces de domínio
+    ├── Factory/              # Factories
+    └── Exception/            # Exceções de domínio
+
+docs/
+└── emissao-dps.php          # Exemplo completo de emissão de DPS
 ```
 
-## Uso com Clean Architecture
+## Uso Básico
 
-### Emitir NFS-e usando Use Case
+### Exemplo Completo
+
+Consulte o arquivo `docs/emissao-dps.php` para um exemplo completo e detalhado de como criar e gerar uma DPS.
+
+### Exemplo Simplificado
 
 ```php
-use NfseNacional\Application\UseCase\Emissao\EmitirNfseUseCase;
-use NfseNacional\Application\UseCase\Emissao\EmitirNfseRequest;
+<?php
+
 use NfseNacional\Domain\Entity\Dps;
 use NfseNacional\Domain\Entity\Prestador;
 use NfseNacional\Domain\Entity\Tomador;
-use NfseNacional\Domain\Entity\Servico;
-use NfseNacional\Domain\ValueObject\Documento\Cnpj;
-use NfseNacional\Infrastructure\Gateway\Http\NfseApiGateway;
-use NfseNacional\Infrastructure\Security\OpenSslCertificateHandler;
-use NfseNacional\Shared\Enum\TipoAmbiente;
+use NfseNacional\Domain\Entity\Emitente;
+use NfseNacional\Domain\Enum\ProcessoEmissao;
+use NfseNacional\Domain\Enum\TipoEmissaoNfse;
+use NfseNacional\Domain\Enum\AmbienteGeradorNfse;
+use NfseNacional\Domain\Enum\SituacoesPossiveisNfse;
+use NfseNacional\Domain\Enum\OptanteSimplesNacional;
+use NfseNacional\Domain\Enum\RegimeEspecialTributacaoMunicipal;
+use NfseNacional\Domain\ValueObject\Cnpj;
+use NfseNacional\Domain\ValueObject\Cpf;
+use NfseNacional\Domain\ValueObject\Endereco;
+use NfseNacional\Domain\ValueObject\Email;
+use NfseNacional\Domain\ValueObject\Telefone;
+use NfseNacional\Domain\Xml\DpsXml;
+use DateTime;
+use DateTimeZone;
 
-// 1. Configurar infraestrutura
-$certificateHandler = new OpenSslCertificateHandler(
-    '/caminho/para/certificado.pfx',
-    'senha_do_certificado'
-);
-
-$gateway = new NfseApiGateway(
-    $certificateHandler,
-    TipoAmbiente::HOMOLOGACAO
-);
-
-// 2. Criar Use Case
-$useCase = new EmitirNfseUseCase($gateway);
-
-// 3. Criar entidades de domínio
+// 1. Criar Prestador
 $prestador = new Prestador(
-    documento: new Cnpj('11222333000181'),
-    razaoSocial: 'Empresa Prestadora LTDA'
+    nome: 'Empresa Prestadora LTDA',
+    documento: new Cnpj('50600661000126'),
+    endereco: new Endereco(
+        logradouro: 'Rua Exemplo',
+        numero: '123',
+        bairro: 'Centro',
+        codigoMunicipio: 4205407, // Florianópolis/SC
+        uf: 'SC',
+        cep: '88010000'
+    ),
+    optanteSimplesNacional: OptanteSimplesNacional::OptanteMEEPP,
+    regimeEspecialTributacao: RegimeEspecialTributacaoMunicipal::Nenhum
 );
 
+// 2. Criar Tomador
 $tomador = new Tomador(
-    documento: '44555666000199', // String também funciona
-    razaoSocial: 'Cliente Tomador LTDA'
-);
-
-$servico = new Servico(
-    itemListaServico: '1401',
-    discriminacao: 'Serviço de desenvolvimento de software',
-    valorServicos: 1000.00,
-    codigoMunicipio: '3550308'
-);
-
-$dps = new Dps(
-    numero: '1',
-    serie: '1',
-    dataEmissao: new \DateTime(),
-    prestador: $prestador,
-    tomador: $tomador,
-    servico: $servico
-);
-
-// 4. Executar Use Case
-$request = new EmitirNfseRequest($dps);
-$response = $useCase->execute($request);
-
-// 5. Processar resposta
-if ($response->sucesso) {
-    echo "NFS-e emitida com sucesso!\n";
-    echo "Chave de Acesso: " . $response->nfse->getChaveAcessoString() . "\n";
-    echo "Número: " . $response->nfse->numero . "\n";
-    echo "Protocolo: " . $response->protocolo . "\n";
-} else {
-    foreach ($response->erros as $erro) {
-        echo "Erro: " . $erro . "\n";
-    }
-}
-```
-
-### Consultar NFS-e por Chave de Acesso
-
-```php
-use NfseNacional\Application\UseCase\Consulta\ConsultarNfsePorChaveUseCase;
-use NfseNacional\Application\UseCase\Consulta\ConsultarNfsePorChaveRequest;
-
-$useCase = new ConsultarNfsePorChaveUseCase($gateway);
-
-$request = new ConsultarNfsePorChaveRequest(
-    chaveAcesso: '12345678901234567890123456789012345678901234567890'
-);
-
-$response = $useCase->execute($request);
-
-if ($response->encontrada) {
-    $nfse = $response->nfse;
-    echo "NFS-e encontrada: " . $nfse->numero . "\n";
-    echo "Situação: " . $nfse->situacao->getDescricao() . "\n";
-}
-```
-
-### Cancelar NFS-e
-
-```php
-use NfseNacional\Application\UseCase\Cancelamento\CancelarNfseUseCase;
-use NfseNacional\Application\UseCase\Cancelamento\CancelarNfseRequest;
-
-$useCase = new CancelarNfseUseCase($gateway);
-
-$request = new CancelarNfseRequest(
-    chaveAcesso: '12345678901234567890123456789012345678901234567890',
-    codigoCancelamento: '1',
-    motivo: 'Erro de digitação nos dados do tomador'
-);
-
-$response = $useCase->execute($request);
-
-if ($response->sucesso) {
-    echo "NFS-e cancelada com sucesso!\n";
-    echo "Protocolo: " . $response->protocolo . "\n";
-}
-```
-
-### Consultar DFe por NSU
-
-```php
-use NfseNacional\Application\UseCase\Consulta\ConsultarDfePorNsuUseCase;
-use NfseNacional\Application\UseCase\Consulta\ConsultarDfePorNsuRequest;
-
-$useCase = new ConsultarDfePorNsuUseCase($gateway);
-
-$request = new ConsultarDfePorNsuRequest(
-    nsu: 123456,
-    cnpj: '11222333000181',
-    lote: true
-);
-
-$response = $useCase->execute($request);
-
-echo "Status: " . $response->status->getDescricao() . "\n";
-echo "Ambiente: " . $response->ambiente->getDescricao() . "\n";
-
-foreach ($response->itens as $item) {
-    echo "NSU: " . $item->nsu . "\n";
-    echo "Chave: " . $item->chaveAcesso . "\n";
-}
-
-// Verificar se há mais documentos
-if ($response->hasMore()) {
-    echo "Há mais documentos. Último NSU: " . $response->ultimoNsu . "\n";
-}
-```
-
-## Trabalhando com Documentos (CPF/CNPJ)
-
-```php
-use NfseNacional\Domain\ValueObject\Documento\Cpf;
-use NfseNacional\Domain\ValueObject\Documento\Cnpj;
-use NfseNacional\Domain\Factory\DocumentoFactory;
-
-// Criar CPF diretamente
-$cpf = new Cpf('11144477735');
-echo $cpf->getFormatado();      // 111.444.777-35
-echo $cpf->getSemFormatacao();  // 11144477735
-echo $cpf->getTipo();           // CPF
-
-// Criar CNPJ diretamente
-$cnpj = new Cnpj('11222333000181');
-echo $cnpj->getFormatado();     // 11.222.333/0001-81
-echo $cnpj->getSemFormatacao(); // 11222333000181
-echo $cnpj->getTipo();          // CNPJ
-
-// Usar DocumentoFactory para criar automaticamente
-$documento1 = DocumentoFactory::criar('11144477735');    // Cria CPF (11 dígitos)
-$documento2 = DocumentoFactory::criar('11222333000181'); // Cria CNPJ (14 dígitos)
-
-// Usar em Prestador ou Tomador
-$prestador = new Prestador(
-    documento: '11222333000181', // String: cria automaticamente
-    razaoSocial: 'Empresa LTDA'
-);
-
-// Validação automática
-try {
-    $cpf = new Cpf('11111111111'); // CPF inválido
-} catch (\InvalidArgumentException $e) {
-    echo $e->getMessage(); // CPF inválido: sequência repetida
-}
-```
-
-## Injeção de Dependência
-
-A arquitetura é preparada para containers de DI:
-
-```php
-// Exemplo com um container simples
-$container->bind(
-    CertificateHandlerInterface::class,
-    fn() => new OpenSslCertificateHandler($certPath, $certPassword)
-);
-
-$container->bind(
-    NfseGatewayInterface::class,
-    fn($c) => new NfseApiGateway(
-        $c->get(CertificateHandlerInterface::class),
-        TipoAmbiente::HOMOLOGACAO
+    nome: 'Cliente Tomador LTDA',
+    documento: new Cnpj('12345678000190'),
+    endereco: new Endereco(
+        logradouro: 'Av. Cliente',
+        numero: '456',
+        bairro: 'Bairro Cliente',
+        codigoMunicipio: 4205407,
+        uf: 'SC',
+        cep: '88020000'
     )
 );
 
-$container->bind(
-    EmitirNfseUseCase::class,
-    fn($c) => new EmitirNfseUseCase(
-        $c->get(NfseGatewayInterface::class)
-    )
+// 3. Criar DPS
+$dps = new Dps();
+$dps->definirPrestador($prestador)
+    ->definirTomador($tomador)
+    ->definirTipoAmbiente(2) // Homologação
+    ->definirVersaoAplicacao('1.0.0')
+    ->definirSerie('1')
+    ->definirNumeroDps('1')
+    ->definirDataHoraEmissao(new DateTime('now', new DateTimeZone('America/Sao_Paulo')))
+    ->definirDataCompetencia(new DateTime('now', new DateTimeZone('America/Sao_Paulo')))
+    ->definirValorServico(1000.00)
+    ->definirValorRecebido(1000.00);
+
+// 4. Gerar XML
+$dpsXml = new DpsXml(
+    dps: $dps,
+    emitente: null, // Opcional - se null, usa o prestador
+    nNFSe: 1,
+    processoEmissao: ProcessoEmissao::AplicativoContribuinte,
+    tipoEmissaoNfse: TipoEmissaoNfse::EmissaoNormal,
+    ambienteGeradorNfse: AmbienteGeradorNfse::SefinNacionalNfse,
+    situacaoPossivelNfse: SituacoesPossiveisNfse::NfseGerada
 );
 
-// Uso
-$useCase = $container->get(EmitirNfseUseCase::class);
+$xmlString = $dpsXml->render();
+echo $xmlString;
 ```
 
-## Enumerações Disponíveis
+## Enums Disponíveis
 
-```php
-use NfseNacional\Shared\Enum\TipoAmbiente;
-use NfseNacional\Shared\Enum\SituacaoNfse;
-use NfseNacional\Shared\Enum\TipoEvento;
-use NfseNacional\Shared\Enum\TipoManifestacao;
-use NfseNacional\Shared\Enum\StatusProcessamento;
+A biblioteca utiliza enums para garantir type-safety e validação de campos:
 
-// Ambiente
-TipoAmbiente::PRODUCAO;     // Produção
-TipoAmbiente::HOMOLOGACAO;  // Homologação
+### ProcessoEmissao
+- `AplicativoContribuinte` (1) - Emissão com aplicativo do contribuinte (via Web Service)
+- `AplicativoFiscoWeb` (2) - Emissão com aplicativo disponibilizado pelo fisco (Web)
+- `AplicativoFiscoApp` (3) - Emissão com aplicativo disponibilizado pelo fisco (App)
 
-// Situação da NFS-e
-SituacaoNfse::NORMAL;
-SituacaoNfse::CANCELADA;
-SituacaoNfse::SUBSTITUIDA;
+### TipoEmissaoNfse
+- `EmissaoNormal` (1) - Emissão normal no modelo da NFS-e Nacional
+- `EmissaoOriginalLeiauteProprio` (2) - Emissão original em leiaute próprio do município
 
-// Tipos de evento
-TipoEvento::CANCELAMENTO;
-TipoEvento::SUBSTITUICAO;
-TipoEvento::MANIFESTACAO_CONFIRMACAO;
-TipoEvento::MANIFESTACAO_REJEICAO;
-```
+### AmbienteGeradorNfse
+- `SistemaProprioMunicipio` (1) - Sistema Próprio do Município
+- `SefinNacionalNfse` (2) - Sefin Nacional NFS-e
 
-## Tratamento de Erros
+### TipoBeneficioMunicipal
+- `Isencao` (1) - Isenção
+- `ReducaoBCPercentual` (2) - Redução da BC em 'ppBM' %
+- `ReducaoBCValor` (3) - Redução da BC em R$ 'vInfoBM'
+- `AliquotaDiferenciada` (4) - Alíquota Diferenciada de 'aliqDifBM' %
 
-```php
-use NfseNacional\Application\Exception\ApplicationException;
-use NfseNacional\Domain\Exception\ValidationException;
-use NfseNacional\Shared\Exception\ApiException;
-use NfseNacional\Shared\Exception\CertificateException;
+### TipoEmitente
+- `Prestador` (1) - Prestador
+- `Tomador` (2) - Tomador
+- `Intermediario` (3) - Intermediário
 
-try {
-    $response = $useCase->execute($request);
-} catch (ValidationException $e) {
-    // Erros de validação de domínio
-    foreach ($e->getErrors() as $field => $messages) {
-        echo "Campo {$field}: " . implode(', ', $messages) . "\n";
-    }
-} catch (CertificateException $e) {
-    // Problemas com o certificado digital
-    echo "Erro no certificado: " . $e->getMessage() . "\n";
-} catch (ApiException $e) {
-    // Erros na comunicação com a API
-    echo "Erro na API: " . $e->getMessage() . "\n";
-    echo "Status HTTP: " . $e->getStatusCode() . "\n";
-} catch (ApplicationException $e) {
-    // Outros erros de aplicação
-    echo "Erro: " . $e->getMessage() . "\n";
-}
-```
+### OptanteSimplesNacional
+- `NaoOptante` (1) - Não Optante
+- `OptanteMEI` (2) - Optante - Microempreendedor Individual (MEI)
+- `OptanteMEEPP` (3) - Optante - Microempresa ou Empresa de Pequeno Porte (ME/EPP)
 
-## Testes
+### RegimeTributacaoSimplesNacional
+- `RegimeApuracaoTributosFederaisMunicipalSN` (1) - Regime de apuração dos tributos federais e municipal pelo SN
+- `RegimeApuracaoTributosFederaisSNISSQNNfse` (2) - Regime de apuração dos tributos federais pelo SN e o ISSQN pela NFS-e
+- `RegimeApuracaoTributosFederaisMunicipalNfse` (3) - Regime de apuração dos tributos federais e municipal pela NFS-e
+
+### RegimeEspecialTributacaoMunicipal
+- `Nenhum` (0) - Nenhum
+- `AtoCooperado` (1) - Ato Cooperado
+- `Estimativa` (2) - Estimativa
+- `MicroempresaMunicipal` (3) - Microempresa Municipal
+- `NotarioOuRegistrador` (4) - Notário ou Registrador
+- `ProfissionalAutonomo` (5) - Profissional Autônomo
+- `SociedadeDeProfissionais` (6) - Sociedade de Profissionais
+
+### MotivoNaoInformarNif
+- `NaoInformadoNotaOrigem` (0) - Não informado na nota de origem
+- `DispensadoNIF` (1) - Dispensado do NIF
+- `NaoExigenciaNIF` (2) - Não exigência do NIF
+
+### ModoPrestacao
+- `Desconhecido` (0) - Desconhecido (tipo não informado na nota de origem)
+- `Transfronteirico` (1) - Transfronteiriço
+- `ConsumoNoBrasil` (2) - Consumo no Brasil
+- `PresencaComercialExterior` (3) - Presença Comercial no Exterior
+- `MovimentoTemporarioPessoasFisicas` (4) - Movimento Temporário de Pessoas Físicas
+
+### VinculoEntrePartes
+- `SemVinculo` (0) - Sem vínculo com o tomador/Prestador
+- `Controlada` (1) - Controlada
+- `Controladora` (2) - Controladora
+- `Coligada` (3) - Coligada
+- `Matriz` (4) - Matriz
+- `FilialOuSucursal` (5) - Filial ou sucursal
+- `OutroVinculo` (6) - Outro vínculo
+
+### TributacaoIssqn
+- `OperacaoTributavel` (1) - Operação tributável
+- `Imunidade` (2) - Imunidade
+- `ExportacaoServico` (3) - Exportação de serviço
+- `NaoIncidencia` (4) - Não Incidência
+
+### SituacoesPossiveisNfse
+- `NfseGerada` (100) - NFS-e Gerada
+- `NfseSubstituicaoGerada` (101) - NFS-e de Substituição Gerada
+- `NfseDecisaoJudicial` (102) - NFS-e de Decisão Judicial
+- `NfseAvulsa` (103) - NFS-e Avulsa
+
+## Geração de IDs
+
+A biblioteca gera automaticamente os IDs conforme o padrão NFS-e Nacional:
+
+### ID do infNFSe (53 caracteres)
+Formato: `NFS` + Cód.Mun. (7) + Amb.Ger. (1) + Tipo de Inscrição Federal (1) + Inscrição Federal (14) + nNFSe (13) + AnoMes Emis. (4) + Valor do node nNFSe com 9 dígitos + DV (1)
+
+### ID do infDPS (45 caracteres)
+Formato: `DPS` + Cód.Mun. (7) + Tipo de Inscrição Federal (1) + Inscrição Federal (14) + Série DPS (5) + Núm. DPS (15)
+
+## Determinação Automática de TipoEmitente
+
+O campo `tpEmit` é determinado automaticamente pela comparação dos documentos:
+- Se o documento do Emitente for igual ao do Prestador → `TipoEmitente::Prestador` (1)
+- Se o documento do Emitente for igual ao do Tomador → `TipoEmitente::Tomador` (2)
+- Caso contrário → `TipoEmitente::Intermediario` (3)
+
+## Timezone
+
+O timezone padrão utilizado é **Brasília (America/Sao_Paulo)** para todos os campos de data/hora.
+
+## Exemplo Completo
+
+Para ver um exemplo completo e detalhado de uso, consulte o arquivo `docs/emissao-dps.php`.
 
 ```bash
+# Executar o exemplo
+php docs/emissao-dps.php
+```
+
+## Desenvolvimento
+
+```bash
+# Instalar dependências
+composer install
+
+# Executar testes
 composer test
 ```
 
-## Segurança
-
-- Mantenha seu certificado digital em local seguro
-- Nunca versione o arquivo do certificado
-- Use variáveis de ambiente para senhas
-- Utilize HTTPS em todas as comunicações
-- Valide todos os dados de entrada
-
 ## Licença
 
-MIT License - veja [LICENSE](LICENSE) para detalhes.
+MIT License
 
 ## Autor
 
 Gildonei M A Junior
-Email: gildonei.mendes@gmail.com
-
-## Changelog
-
-### 2.0.0
-
-- Refatoração completa para Clean Architecture
-- Separação em camadas: Domain, Application, Infrastructure, Shared
-- Criação de Use Cases para cada operação
-- Value Objects para CPF, CNPJ, Telefone, Email, Endereco
-- Interfaces (Ports) para inversão de dependência
-- DTOs para Request/Response
-- Suporte completo a injeção de dependência

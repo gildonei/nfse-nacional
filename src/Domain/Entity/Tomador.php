@@ -4,126 +4,163 @@ declare(strict_types=1);
 
 namespace NfseNacional\Domain\Entity;
 
-use NfseNacional\Domain\Factory\DocumentoFactory;
-use NfseNacional\Domain\ValueObject\Contato\Endereco;
-use NfseNacional\Domain\ValueObject\Documento\Cnpj;
-use NfseNacional\Domain\ValueObject\Documento\Cpf;
-use NfseNacional\Domain\ValueObject\Documento\DocumentoInterface;
+use InvalidArgumentException;
+use NfseNacional\Domain\Contract\DocumentoInterface;
+use NfseNacional\Domain\Enum\MotivoNaoInformarNif;
+use NfseNacional\Domain\ValueObject\Email;
+use NfseNacional\Domain\ValueObject\Endereco;
+use NfseNacional\Domain\ValueObject\Telefone;
 
 /**
- * Entidade para Tomador de Serviços
+ * Entidade Tomador
+ *
+ * @package NfseNacional\Domain\Entity
  */
-class Tomador
+class Tomador extends Pessoa
 {
-    public readonly DocumentoInterface $documento;
-    public readonly ?string $razaoSocial;
-    public readonly ?string $nomeFantasia;
-    public readonly ?string $inscricaoMunicipal;
-    public readonly ?string $inscricaoEstadual;
-    public readonly ?Endereco $endereco;
-    public readonly ?Contato $contato;
+    /**
+     * Razão social do tomador
+     * @var string|null
+     */
+    private ?string $razaoSocial = null;
 
+    /**
+     * Dados adicionais do tomador
+     * @var string|null
+     */
+    private ?string $dadosAdicionais = null;
+
+    /**
+     * Motivo de não informar NIF
+     * @var MotivoNaoInformarNif|null
+     */
+    private ?MotivoNaoInformarNif $motivoNaoInformarNif = null;
+
+    /**
+     * Construtor
+     *
+     * @param string|null $nome
+     * @param string|null $razaoSocial
+     * @param Email|string|null $email
+     * @param int|null $cmc
+     * @param DocumentoInterface|string|null $documento
+     * @param Endereco|null $endereco
+     * @param string|null $dadosAdicionais
+     * @param Telefone|null $telefone
+     */
     public function __construct(
-        DocumentoInterface|string $documento,
+        ?string $nome = null,
         ?string $razaoSocial = null,
-        ?string $nomeFantasia = null,
-        ?string $inscricaoMunicipal = null,
-        ?string $inscricaoEstadual = null,
+        Email|string|null $email = null,
+        ?int $cmc = null,
+        DocumentoInterface|string|null $documento = null,
         ?Endereco $endereco = null,
-        ?Contato $contato = null
+        ?string $dadosAdicionais = null,
+        ?Telefone $telefone = null
     ) {
-        if (is_string($documento)) {
-            $this->documento = DocumentoFactory::criar($documento);
-        } else {
-            $this->documento = $documento;
+        if ($nome !== null) {
+            $this->definirNome($nome);
+        }
+        if ($razaoSocial !== null) {
+            $this->definirRazaoSocial($razaoSocial);
+        }
+        if ($email !== null) {
+            $emailObj = is_string($email) ? new Email($email) : $email;
+            $this->definirEmail($emailObj);
+        }
+        if ($cmc !== null) {
+            $this->definirCmc($cmc);
+        }
+        if ($documento !== null) {
+            $this->definirDocumento($documento);
+        }
+        if ($endereco !== null) {
+            $this->definirEndereco($endereco);
+        }
+        if ($dadosAdicionais !== null) {
+            $this->definirDadosAdicionais($dadosAdicionais);
+        }
+        if ($telefone !== null) {
+            $this->definirTelefone($telefone);
+        }
+    }
+
+
+    /**
+     * Define a razão social
+     *
+     * @param string $razaoSocial
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirRazaoSocial(string $razaoSocial): self
+    {
+        if (empty(trim($razaoSocial))) {
+            throw new InvalidArgumentException('Razão social está vazia!');
         }
 
         $this->razaoSocial = $razaoSocial;
-        $this->nomeFantasia = $nomeFantasia;
-        $this->inscricaoMunicipal = $inscricaoMunicipal;
-        $this->inscricaoEstadual = $inscricaoEstadual;
-        $this->endereco = $endereco;
-        $this->contato = $contato;
+        return $this;
     }
 
     /**
-     * Cria uma instância a partir de um array
+     * Retorna a razão social
      *
-     * @param array<string, mixed> $data
+     * @return string|null
      */
-    public static function fromArray(array $data): self
+    public function obterRazaoSocial(): ?string
     {
-        $endereco = null;
-        if (isset($data['endereco']) && is_array($data['endereco'])) {
-            $endereco = Endereco::fromArray($data['endereco']);
-        }
-
-        $contato = null;
-        if (isset($data['contato']) && is_array($data['contato'])) {
-            $contato = Contato::fromArray($data['contato']);
-        }
-
-        $documento = null;
-        if (isset($data['documento']) || isset($data['Documento'])) {
-            $docData = $data['documento'] ?? $data['Documento'];
-            if ($docData instanceof DocumentoInterface) {
-                $documento = $docData;
-            } elseif (is_string($docData)) {
-                $documento = DocumentoFactory::criar($docData);
-            }
-        } else {
-            $documento = DocumentoFactory::fromArray($data);
-        }
-
-        return new self(
-            documento: $documento,
-            razaoSocial: $data['razaoSocial'] ?? $data['RazaoSocial'] ?? null,
-            nomeFantasia: $data['nomeFantasia'] ?? $data['NomeFantasia'] ?? null,
-            inscricaoMunicipal: $data['inscricaoMunicipal'] ?? $data['InscricaoMunicipal'] ?? null,
-            inscricaoEstadual: $data['inscricaoEstadual'] ?? $data['InscricaoEstadual'] ?? null,
-            endereco: $endereco,
-            contato: $contato
-        );
+        return $this->razaoSocial;
     }
 
     /**
-     * Converte para array
+     * Define os dados adicionais
      *
-     * @return array<string, mixed>
+     * @param string $dadosAdicionais
+     * @throws InvalidArgumentException
+     * @return self
      */
-    public function toArray(): array
+    public function definirDadosAdicionais(string $dadosAdicionais): self
     {
-        $array = [
-            'razaoSocial' => $this->razaoSocial,
-            'nomeFantasia' => $this->nomeFantasia,
-            'inscricaoMunicipal' => $this->inscricaoMunicipal,
-            'inscricaoEstadual' => $this->inscricaoEstadual,
-            'endereco' => $this->endereco?->toArray(),
-            'contato' => $this->contato?->toArray(),
-        ];
-
-        if ($this->documento instanceof Cnpj) {
-            $array['cnpj'] = $this->documento->getSemFormatacao();
-        } elseif ($this->documento instanceof Cpf) {
-            $array['cpf'] = $this->documento->getSemFormatacao();
+        if (strlen($dadosAdicionais) > 600) {
+            throw new InvalidArgumentException('Dados adicionais excedem o limite máximo de 600 caracteres!');
         }
 
-        return array_filter($array, fn($value) => $value !== null);
+        $this->dadosAdicionais = $dadosAdicionais;
+        return $this;
     }
 
-    public function getDocumento(): DocumentoInterface
+    /**
+     * Retorna os dados adicionais
+     *
+     * @return string|null
+     */
+    public function obterDadosAdicionais(): ?string
     {
-        return $this->documento;
+        return $this->dadosAdicionais;
     }
 
-    public function getCnpj(): ?string
+    /**
+     * Define o motivo de não informar NIF
+     *
+     * @param MotivoNaoInformarNif $motivoNaoInformarNif
+     * @return self
+     */
+    public function definirMotivoNaoInformarNif(MotivoNaoInformarNif $motivoNaoInformarNif): self
     {
-        return $this->documento instanceof Cnpj ? $this->documento->getSemFormatacao() : null;
+        $this->motivoNaoInformarNif = $motivoNaoInformarNif;
+        return $this;
     }
 
-    public function getCpf(): ?string
+    /**
+     * Retorna o motivo de não informar NIF
+     *
+     * @return MotivoNaoInformarNif|null
+     */
+    public function obterMotivoNaoInformarNif(): ?MotivoNaoInformarNif
     {
-        return $this->documento instanceof Cpf ? $this->documento->getSemFormatacao() : null;
+        return $this->motivoNaoInformarNif;
     }
+
 }
 

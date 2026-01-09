@@ -4,126 +4,212 @@ declare(strict_types=1);
 
 namespace NfseNacional\Domain\Entity;
 
-use NfseNacional\Domain\Factory\DocumentoFactory;
-use NfseNacional\Domain\ValueObject\Contato\Endereco;
-use NfseNacional\Domain\ValueObject\Documento\Cnpj;
-use NfseNacional\Domain\ValueObject\Documento\Cpf;
-use NfseNacional\Domain\ValueObject\Documento\DocumentoInterface;
+use InvalidArgumentException;
+use NfseNacional\Domain\Enum\OptanteSimplesNacional;
+use NfseNacional\Domain\Enum\RegimeEspecialTributacaoMunicipal;
+use NfseNacional\Domain\Enum\RegimeTributacaoSimplesNacional;
+use NfseNacional\Domain\Contract\DocumentoInterface;
+use NfseNacional\Domain\ValueObject\Email;
+use NfseNacional\Domain\ValueObject\Endereco;
+use NfseNacional\Domain\ValueObject\Telefone;
 
 /**
- * Entidade para Prestador de Serviços
+ * Entidade Prestador
+ *
+ * @package NfseNacional\Domain\Entity
  */
-class Prestador
+class Prestador extends Pessoa
 {
-    public readonly DocumentoInterface $documento;
-    public readonly ?string $razaoSocial;
-    public readonly ?string $nomeFantasia;
-    public readonly ?string $inscricaoMunicipal;
-    public readonly ?string $inscricaoEstadual;
-    public readonly ?Endereco $endereco;
-    public readonly ?Contato $contato;
+    /**
+     * Número AEDF (Autorização para Emissão de Nota Fiscal)
+     * @var int|null
+     */
+    private ?int $aedf = null;
 
+    /**
+     * Optante pelo Simples Nacional
+     * @var OptanteSimplesNacional|null
+     */
+    private ?OptanteSimplesNacional $optanteSimplesNacional = null;
+
+    /**
+     * Regime Especial de Tributação Municipal
+     * @var RegimeEspecialTributacaoMunicipal|null
+     */
+    private ?RegimeEspecialTributacaoMunicipal $regimeEspecialTributacao = null;
+
+    /**
+     * Regime de Tributação Simples Nacional
+     * @var RegimeTributacaoSimplesNacional|null
+     */
+    private ?RegimeTributacaoSimplesNacional $regimeTributacaoSimplesNacional = null;
+
+    /**
+     * Construtor
+     *
+     * @param string|null $nome
+     * @param Email|string|null $email
+     * @param int|null $cmc
+     * @param int|null $aedf
+     * @param DocumentoInterface|string|null $documento
+     * @param Endereco|null $endereco
+     * @param Telefone|null $telefone
+     * @param OptanteSimplesNacional|null $optanteSimplesNacional
+     * @param RegimeEspecialTributacaoMunicipal|null $regimeEspecialTributacao
+     */
     public function __construct(
-        DocumentoInterface|string $documento,
-        ?string $razaoSocial = null,
-        ?string $nomeFantasia = null,
-        ?string $inscricaoMunicipal = null,
-        ?string $inscricaoEstadual = null,
+        ?string $nome = null,
+        Email|string|null $email = null,
+        ?int $cmc = null,
+        ?int $aedf = null,
+        DocumentoInterface|string|null $documento = null,
         ?Endereco $endereco = null,
-        ?Contato $contato = null
+        ?Telefone $telefone = null,
+        ?OptanteSimplesNacional $optanteSimplesNacional = null,
+        ?RegimeEspecialTributacaoMunicipal $regimeEspecialTributacao = null
     ) {
-        if (is_string($documento)) {
-            $this->documento = DocumentoFactory::criar($documento);
-        } else {
-            $this->documento = $documento;
+        if ($nome !== null) {
+            $this->definirNome($nome);
+        }
+        if ($email !== null) {
+            $emailObj = is_string($email) ? new Email($email) : $email;
+            $this->definirEmail($emailObj);
+        }
+        if ($cmc !== null) {
+            $this->definirCmc($cmc);
+        }
+        if ($aedf !== null) {
+            $this->definirAedf($aedf);
+        }
+        if ($documento !== null) {
+            $this->definirDocumento($documento);
+        }
+        if ($endereco !== null) {
+            $this->definirEndereco($endereco);
+        }
+        if ($telefone !== null) {
+            $this->definirTelefone($telefone);
+        }
+        if ($optanteSimplesNacional !== null) {
+            $this->definirOptanteSimplesNacional($optanteSimplesNacional);
+        }
+        if ($regimeEspecialTributacao !== null) {
+            $this->definirRegimeEspecialTributacao($regimeEspecialTributacao);
+        }
+    }
+
+
+    /**
+     * Define o valor do AEDF
+     *
+     * @param int $aedf
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirAedf(int $aedf): self
+    {
+        if ($aedf <= 0) {
+            throw new InvalidArgumentException('AEDF deve ser um número válido!');
         }
 
-        $this->razaoSocial = $razaoSocial;
-        $this->nomeFantasia = $nomeFantasia;
-        $this->inscricaoMunicipal = $inscricaoMunicipal;
-        $this->inscricaoEstadual = $inscricaoEstadual;
-        $this->endereco = $endereco;
-        $this->contato = $contato;
+        $this->aedf = $aedf;
+        return $this;
     }
 
     /**
-     * Cria uma instância a partir de um array
+     * Retorna o AEDF do prestador
      *
-     * @param array<string, mixed> $data
+     * @return int|null
      */
-    public static function fromArray(array $data): self
+    public function obterAedf(): ?int
     {
-        $endereco = null;
-        if (isset($data['endereco']) && is_array($data['endereco'])) {
-            $endereco = Endereco::fromArray($data['endereco']);
-        }
-
-        $contato = null;
-        if (isset($data['contato']) && is_array($data['contato'])) {
-            $contato = Contato::fromArray($data['contato']);
-        }
-
-        $documento = null;
-        if (isset($data['documento']) || isset($data['Documento'])) {
-            $docData = $data['documento'] ?? $data['Documento'];
-            if ($docData instanceof DocumentoInterface) {
-                $documento = $docData;
-            } elseif (is_string($docData)) {
-                $documento = DocumentoFactory::criar($docData);
-            }
-        } else {
-            $documento = DocumentoFactory::fromArray($data);
-        }
-
-        return new self(
-            documento: $documento,
-            razaoSocial: $data['razaoSocial'] ?? $data['RazaoSocial'] ?? null,
-            nomeFantasia: $data['nomeFantasia'] ?? $data['NomeFantasia'] ?? null,
-            inscricaoMunicipal: $data['inscricaoMunicipal'] ?? $data['InscricaoMunicipal'] ?? null,
-            inscricaoEstadual: $data['inscricaoEstadual'] ?? $data['InscricaoEstadual'] ?? null,
-            endereco: $endereco,
-            contato: $contato
-        );
+        return $this->aedf;
     }
 
     /**
-     * Converte para array
+     * Define se é optante pelo Simples Nacional
      *
-     * @return array<string, mixed>
+     * @param OptanteSimplesNacional $optanteSimplesNacional
+     * @return self
      */
-    public function toArray(): array
+    public function definirOptanteSimplesNacional(OptanteSimplesNacional $optanteSimplesNacional): self
     {
-        $array = [
-            'razaoSocial' => $this->razaoSocial,
-            'nomeFantasia' => $this->nomeFantasia,
-            'inscricaoMunicipal' => $this->inscricaoMunicipal,
-            'inscricaoEstadual' => $this->inscricaoEstadual,
-            'endereco' => $this->endereco?->toArray(),
-            'contato' => $this->contato?->toArray(),
-        ];
-
-        if ($this->documento instanceof Cnpj) {
-            $array['cnpj'] = $this->documento->getSemFormatacao();
-        } elseif ($this->documento instanceof Cpf) {
-            $array['cpf'] = $this->documento->getSemFormatacao();
-        }
-
-        return array_filter($array, fn($value) => $value !== null);
+        $this->optanteSimplesNacional = $optanteSimplesNacional;
+        return $this;
     }
 
-    public function getDocumento(): DocumentoInterface
+    /**
+     * Retorna se é optante pelo Simples Nacional
+     *
+     * @return OptanteSimplesNacional|null
+     */
+    public function obterOptanteSimplesNacional(): ?OptanteSimplesNacional
     {
-        return $this->documento;
+        return $this->optanteSimplesNacional;
     }
 
-    public function getCnpj(): ?string
+    /**
+     * Define o regime especial de tributação municipal
+     *
+     * @param RegimeEspecialTributacaoMunicipal $regimeEspecialTributacao
+     * @return self
+     */
+    public function definirRegimeEspecialTributacao(RegimeEspecialTributacaoMunicipal $regimeEspecialTributacao): self
     {
-        return $this->documento instanceof Cnpj ? $this->documento->getSemFormatacao() : null;
+        $this->regimeEspecialTributacao = $regimeEspecialTributacao;
+        return $this;
     }
 
-    public function getCpf(): ?string
+    /**
+     * Retorna o regime especial de tributação municipal
+     *
+     * @return RegimeEspecialTributacaoMunicipal|null
+     */
+    public function obterRegimeEspecialTributacao(): ?RegimeEspecialTributacaoMunicipal
     {
-        return $this->documento instanceof Cpf ? $this->documento->getSemFormatacao() : null;
+        return $this->regimeEspecialTributacao;
+    }
+
+    /**
+     * Retorna a descrição do regime especial de tributação
+     *
+     * @return string|null
+     */
+    public function obterDescricaoRegimeEspecialTributacao(): ?string
+    {
+        return $this->regimeEspecialTributacao?->descricao();
+    }
+
+    /**
+     * Retorna o valor numérico do regime especial de tributação
+     *
+     * @return int|null
+     */
+    public function obterValorRegimeEspecialTributacao(): ?int
+    {
+        return $this->regimeEspecialTributacao?->valor();
+    }
+
+    /**
+     * Define o regime de tributação simples nacional
+     *
+     * @param RegimeTributacaoSimplesNacional $regimeTributacaoSimplesNacional
+     * @return self
+     */
+    public function definirRegimeTributacaoSimplesNacional(RegimeTributacaoSimplesNacional $regimeTributacaoSimplesNacional): self
+    {
+        $this->regimeTributacaoSimplesNacional = $regimeTributacaoSimplesNacional;
+        return $this;
+    }
+
+    /**
+     * Retorna o regime de tributação simples nacional
+     *
+     * @return RegimeTributacaoSimplesNacional|null
+     */
+    public function obterRegimeTributacaoSimplesNacional(): ?RegimeTributacaoSimplesNacional
+    {
+        return $this->regimeTributacaoSimplesNacional;
     }
 }
 

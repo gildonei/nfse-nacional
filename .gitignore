@@ -1,5 +1,4 @@
 /vendor/
-composer.lock
 .phpunit.result.cache
 .idea/
 .vscode/
@@ -7,4 +6,8 @@ composer.lock
 *.cache
 .DS_Store
 Thumbs.db
-
+.history/
+.env
+*.pfx
+*.p12
+*.pem
