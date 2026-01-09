@@ -12,8 +12,6 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use DateTime;
-use DOMDocument;
-use DOMXPath;
 use Exception;
 use InvalidArgumentException;
 use NfseNacional\Domain\Entity\Dps;
@@ -34,15 +32,15 @@ use NfseNacional\Domain\Enum\TipoEmissaoNfse;
 use NfseNacional\Domain\Enum\TributacaoIssqn;
 use NfseNacional\Domain\Enum\VinculoEntrePartes;
 use NfseNacional\Domain\Factory\DocumentoFactory;
+use NfseNacional\Domain\ValueObject\Certificado;
 use NfseNacional\Domain\ValueObject\Cnpj;
 use NfseNacional\Domain\ValueObject\Cpf;
 use NfseNacional\Domain\ValueObject\Email;
 use NfseNacional\Domain\ValueObject\Endereco;
 use NfseNacional\Domain\ValueObject\Telefone;
 use NfseNacional\Domain\Xml\DpsXml;
-use NfseNacional\Application\Service\EnvioDpsService;
+use NfseNacional\Application\Service\SefinNacionalService;
 use NfseNacional\Infrastructure\Security\AssinadorXml;
-use NfseNacional\Infrastructure\Http\HttpClient;
 
 // ============================================
 // CONFIGURAÇÕES BÁSICAS
@@ -52,12 +50,6 @@ $numeroDps = '1';
 $serie = '1';
 $valorServico = 1000.00;
 $valorRecebido = 1000.00;
-
-// ============================================
-// CERTIFICADO DIGITAL
-// ============================================
-$caminhoCertificado = '/var/www/nfsenacional/docs/certificado.pfx'; // Substitua pelo caminho real
-$senhaCertificado = '12345678'; // Senha certificado
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -87,16 +79,53 @@ $senhaCertificado = '12345678'; // Senha certificado
 
         <?php
         // ============================================
+        // CRIAR CERTIFICADO
+        // ============================================
+        ?>
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">1. Criando Certificado</h5>
+            </div>
+            <div class="card-body">
+                <?php
+                try {
+                    $caminhoCertificado = '/var/www/nfsenacional/docs/certificado.pfx'; // Substitua pelo caminho real
+                    $senhaCertificado = '12345678'; // Senha certificado
+                    $certificado = new Certificado($caminhoCertificado, $senhaCertificado);
+                ?>
+                    <p><strong>Certificado:</strong> <?= htmlspecialchars($caminhoCertificado)?></p>
+                    <div class="alert alert-success">✓ Certificado criado com sucesso!</div>
+                <?php if ($certificado->validar()) :?>
+                    <div class="alert alert-success mb-0">✓ Certificado válido!</div>
+                <?php else :?>
+                    <div class="alert alert-danger mb-0">Erro de Validação</div>
+                <?php
+                    endif;
+                } catch (InvalidArgumentException $e) {?>
+                <div class="alert alert-danger mb-0">
+                    <strong>Erro de criação do certificado:</strong> <?= htmlspecialchars($e->getMessage())?>
+                </div>
+                <?php }?>
+                <div class="alert alert-info mt-3 mb-0">
+                    <small><strong>Nota:</strong> Em produção, você deve fornecer um certificado digital ICP-Brasil válido (.pfx ou .p12) para assinar o XML da DPS.</small>
+                </div>
+            </div>
+        </div>
+
+        <?php
+        // ============================================
         // CRIAR EMITENTE
         // ============================================
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">1. Criando Emitente</h5>
+                <h5 class="mb-0">2. Criando Emitente</h5>
             </div>
             <div class="card-body">
                 <?php
                 try {
+                    $certificado = new Certificado($caminhoCertificado, $senhaCertificado);
+
                     $emitente = new Emitente(
                         nome: 'Empresa Emitente LTDA',
                         documento: new Cnpj('50600661000126'), // CNPJ do emitente
@@ -116,21 +145,18 @@ $senhaCertificado = '12345678'; // Senha certificado
                             numero: 33334444
                         ),
                         email: 'emitente@empresa.com.br',
-                        certificado: $caminhoCertificado,
-                        senhaCertificado: $senhaCertificado,
+                        certificado: $certificado, // Value Object Certificado (obrigatório)
                         cmc: 654321 // Inscrição Municipal (opcional)
                     );
                     ?>
                     <p><strong>Nome:</strong> <?= htmlspecialchars($emitente->obterNome())?></p>
                     <p><strong>CNPJ:</strong> <?= htmlspecialchars($emitente->obterDocumento()?->obterFormatado() ?? '')?></p>
                     <p><strong>Email:</strong> <?= htmlspecialchars($emitente->obterEmail()?->obterEndereco() ?? '')?></p>
-                    <p><strong>Certificado:</strong> <?= htmlspecialchars($caminhoCertificado)?></p>
-                    <div class="alert alert-success">✓ Emitente criado com sucesso!</div>
-                    <div class="alert alert-info mt-2 mb-0">
-                        <small><strong>Nota:</strong> Em produção, você deve fornecer um certificado digital ICP-Brasil válido (.pfx ou .p12) para assinar o XML da DPS.</small>
-                    </div>
+                    <p><strong>Telefone:</strong> <?= htmlspecialchars($emitente->obterTelefone()?->obterNumero() ?? '')?></p>
+                    <p><strong>Endereço:</strong> <?= htmlspecialchars($emitente->obterEndereco()?->obterEnderecoCompleto() ?? '')?></p>
+                    <div class="alert alert-success mb-0">✓ Emitente criado com sucesso!</div>
                 <?php } catch (InvalidArgumentException $e) {?>
-                <div class="alert alert-danger">
+                <div class="alert alert-danger mb-0">
                     <strong>Erro de Validação:</strong> <?= htmlspecialchars($e->getMessage())?>
                 </div>
                 <?php }?>
@@ -144,7 +170,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">2. Criando Prestador de Serviços</h5>
+                <h5 class="mb-0">3. Criando Prestador de Serviços</h5>
             </div>
             <div class="card-body">
                 <?php
@@ -202,7 +228,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">3. Criando Tomador de Serviços</h5>
+                <h5 class="mb-0">4. Criando Tomador de Serviços</h5>
             </div>
             <div class="card-body">
                 <?php
@@ -254,7 +280,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">4. Criando DPS</h5>
+                <h5 class="mb-0">5. Criando DPS</h5>
             </div>
             <div class="card-body">
                 <?php
@@ -262,7 +288,7 @@ $senhaCertificado = '12345678'; // Senha certificado
                     $dps = new Dps();
                     $dps->definirPrestador($prestador)
                         ->definirTomador($tomador)
-                        ->definirTipoAmbiente(2) // 1 = Produção, 2 = Homologação
+                        ->definirTipoAmbiente(SefinNacionalService::AMBIENTE_HOMOLOGACAO) // 1 = Produção, 2 = Homologação
                         ->definirDataHoraEmissao(new DateTime('now', new \DateTimeZone('America/Sao_Paulo')))
                         ->definirVersaoAplicacao('1.0')
                         ->definirSerie($serie)
@@ -313,7 +339,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">5. Gerando XML da DPS</h5>
+                <h5 class="mb-0">6. Gerando XML da DPS</h5>
             </div>
             <div class="card-body">
                 <?php
@@ -409,7 +435,7 @@ $senhaCertificado = '12345678'; // Senha certificado
                 // ASSINAR XML COM CERTIFICADO DIGITAL
                 // ============================================
                 ?>
-                <h6 class="mt-4">6. Assinando XML com Certificado Digital</h6>
+                <h6 class="mt-4">7. Assinando XML com Certificado Digital</h6>
 
                 <?php
                 try {
@@ -437,20 +463,38 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">7. Envio da DPS para a API NFS-e Nacional</h5>
+                <h5 class="mb-0">8. Envio da DPS para a API NFS-e Nacional</h5>
             </div>
             <div class="card-body">
                 <?php
                 try {
-                    // Cria as instâncias dos serviços
-                    $httpClient = new HttpClient();
-                    $envioDpsService = new EnvioDpsService($assinador, $httpClient);
+                    // Obtém o tipo de ambiente da DPS
+                    // Se não definido, usa produção como padrão
+                    $tipoAmbiente = SefinNacionalService::AMBIENTE_HOMOLOGACAO;
+
+                    // Cria o serviço com o emitente (certificado será usado para autenticação SSL/TLS)
+                    // O HttpClient é criado internamente com o certificado do emitente
+                    $sefinNacionalService = new SefinNacionalService($emitente, $assinador, $tipoAmbiente);
+
+                    // Para alterar o ambiente depois, use:
+                    // $sefinNacionalService->definirTipoAmbiente(SefinNacionalService::AMBIENTE_HOMOLOGACAO);
+
+                    // Alternativamente, pode definir o ambiente depois:
+                    // $sefinNacionalService->definirTipoAmbiente(2); // Homologação
 
                     // Envia a DPS
-                    // A URL é determinada automaticamente baseada no tipo de ambiente da DPS
-                    // (1 = Produção, 2 = Homologação)
+                    // O ambiente é determinado pela propriedade do serviço (configurado no construtor)
                     // O emitente é obtido automaticamente do DpsXml
-                    $resposta = $envioDpsService->enviar($dpsXml);
+                    $resposta = $sefinNacionalService->enviarDps($dpsXml);
+
+                    // Outros métodos disponíveis no SefinNacionalService:
+                    // - consultarDps($idDps) - Consulta chave de acesso pelo ID do DPS
+                    // - verificarDps($idDps) - Verifica se NFS-e foi emitida
+                    // - consultarNfse($chaveAcesso) - Consulta NFS-e pela chave de acesso
+                    // - registrarEvento($chaveAcesso, $xmlEventoAssinado) - Registra evento na NFS-e
+                    // - consultarEvento($chaveAcesso, $tipoEvento, $numSeqEvento) - Consulta evento específico
+                    // - enviarNfseDecisaoJudicial($xmlNfseAssinado) - Envia NFS-e com decisão judicial
+                    // Nota: Todos os métodos usam o ambiente configurado no serviço (via construtor ou setter)
                 ?>
                     <h6>Resposta da API:</h6>
                     <pre><?= htmlspecialchars(json_encode($resposta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))?></pre>
@@ -483,7 +527,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">8. Exemplo Alternativo: Tomador com CPF</h5>
+                <h5 class="mb-0">9. Exemplo Alternativo: Tomador com CPF</h5>
             </div>
             <div class="card-body">
                 <?php
@@ -523,7 +567,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">9. Exemplo Profissional Autônomo</h5>
+                <h5 class="mb-0">10. Exemplo Profissional Autônomo</h5>
             </div>
             <div class="card-body">
                 <?php
@@ -555,7 +599,7 @@ $senhaCertificado = '12345678'; // Senha certificado
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">10. Dados complementares</h5>
+                <h5 class="mb-0">11. Dados complementares</h5>
             </div>
             <div class="card-body">
                 <h6>1. Exemplos de Regimes Especiais de Tributação Municipal</h6>
@@ -647,7 +691,7 @@ $senhaCertificado = '12345678'; // Senha certificado
 
         <div class="card mt-3 mb-5">
             <div class="card-header">
-                <h6>11. Informações Adicionais</h6>
+                <h6>12. Informações Adicionais</h6>
             </div>
             <div class="card-body">
                 <h6>Campos Obrigatórios da DPS:</h6>

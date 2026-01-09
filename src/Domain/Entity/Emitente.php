@@ -6,6 +6,7 @@ namespace NfseNacional\Domain\Entity;
 
 use InvalidArgumentException;
 use NfseNacional\Domain\Contract\DocumentoInterface;
+use NfseNacional\Domain\ValueObject\Certificado;
 use NfseNacional\Domain\ValueObject\Email;
 use NfseNacional\Domain\ValueObject\Endereco;
 use NfseNacional\Domain\ValueObject\Telefone;
@@ -22,15 +23,9 @@ class Emitente extends Pessoa
 {
     /**
      * Certificado digital para assinatura do XML
-     * @var string|null
+     * @var Certificado|null
      */
-    private ?string $certificado = null;
-
-    /**
-     * Senha do certificado digital
-     * @var string|null
-     */
-    private ?string $senhaCertificado = null;
+    private ?Certificado $certificado = null;
 
     /**
      * Construtor
@@ -40,8 +35,7 @@ class Emitente extends Pessoa
      * @param Endereco $endereco Endereço do emitente (obrigatório)
      * @param Telefone $telefone Telefone do emitente (obrigatório)
      * @param Email|string $email Email do emitente (obrigatório)
-     * @param string $certificado Certificado digital para assinatura (obrigatório)
-     * @param string $senhaCertificado Senha do certificado digital (obrigatório)
+     * @param Certificado $certificado Certificado digital para assinatura (obrigatório)
      * @param int|null $cmc Código Municipal Contribuinte (opcional)
      */
     public function __construct(
@@ -50,8 +44,7 @@ class Emitente extends Pessoa
         Endereco $endereco,
         Telefone $telefone,
         Email|string $email,
-        string $certificado,
-        string $senhaCertificado,
+        Certificado $certificado,
         ?int $cmc = null
     ) {
         // Define propriedades obrigatórias
@@ -67,9 +60,6 @@ class Emitente extends Pessoa
         // Define certificado
         $this->definirCertificado($certificado);
 
-        // Define senha do certificado
-        $this->definirSenhaCertificado($senhaCertificado);
-
         // Define CMC se fornecido
         if ($cmc !== null) {
             $this->definirCmc($cmc);
@@ -79,29 +69,16 @@ class Emitente extends Pessoa
     /**
      * Define o certificado digital
      *
-     * @param string $certificado Caminho do arquivo ou conteúdo do certificado
+     * @param Certificado $certificado Value Object do certificado
      * @throws InvalidArgumentException
      * @return self
      */
-    public function definirCertificado(string $certificado): self
+    public function definirCertificado(Certificado $certificado): self
     {
-        $certificado = trim($certificado);
+        $this->certificado = $certificado;
 
-        if (empty($certificado)) {
-            throw new InvalidArgumentException('Certificado não pode estar vazio!');
-        }
-
-        // Verifica se é um caminho de arquivo e se existe
-        if (file_exists($certificado)) {
-            $conteudo = file_get_contents($certificado);
-            if ($conteudo === false) {
-                throw new InvalidArgumentException('Não foi possível ler o arquivo do certificado!');
-            }
-            $this->certificado = $conteudo;
-        } else {
-            // Assume que é o conteúdo do certificado
-            $this->certificado = $certificado;
-        }
+        // Valida o certificado
+        $this->certificado->validar();
 
         return $this;
     }
@@ -109,40 +86,31 @@ class Emitente extends Pessoa
     /**
      * Retorna o certificado digital
      *
-     * @return string|null
+     * @return Certificado|null
      */
-    public function obterCertificado(): ?string
+    public function obterCertificado(): ?Certificado
     {
         return $this->certificado;
     }
 
     /**
-     * Define a senha do certificado digital
+     * Retorna o conteúdo do certificado digital (método de conveniência)
      *
-     * @param string $senhaCertificado Senha do certificado
-     * @throws InvalidArgumentException
-     * @return self
+     * @return string|null
      */
-    public function definirSenhaCertificado(string $senhaCertificado): self
+    public function obterConteudoCertificado(): ?string
     {
-        $senhaCertificado = trim($senhaCertificado);
-
-        if (empty($senhaCertificado)) {
-            throw new InvalidArgumentException('Senha do certificado não pode estar vazia!');
-        }
-
-        $this->senhaCertificado = $senhaCertificado;
-        return $this;
+        return $this->certificado?->obterConteudo();
     }
 
     /**
-     * Retorna a senha do certificado digital
+     * Retorna a senha do certificado digital (método de conveniência)
      *
      * @return string|null
      */
     public function obterSenhaCertificado(): ?string
     {
-        return $this->senhaCertificado;
+        return $this->certificado?->obterSenha();
     }
 
     /**
@@ -173,13 +141,12 @@ class Emitente extends Pessoa
             throw new InvalidArgumentException('Email do emitente é obrigatório!');
         }
 
-        if (empty($this->certificado)) {
+        if ($this->certificado === null) {
             throw new InvalidArgumentException('Certificado do emitente é obrigatório!');
         }
 
-        if (empty($this->senhaCertificado)) {
-            throw new InvalidArgumentException('Senha do certificado do emitente é obrigatória!');
-        }
+        // Valida o certificado
+        $this->certificado->validar();
 
         return true;
     }

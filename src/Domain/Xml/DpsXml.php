@@ -323,7 +323,7 @@ class DpsXml implements DpsInterface
         // Elemento raiz NFSe
         $nfseElement = $this->dom->createElement('NFSe');
         $nfseElement->setAttribute('versao', self::DPS_VERSION);
-        $nfseElement->setAttribute('xmlns', self::DPS_NAMESPACE);
+        // $nfseElement->setAttribute('xmlns', self::DPS_NAMESPACE);
 
         // Elemento infNFSe
         $infNfseElement = $this->dom->createElement('infNFSe');
@@ -341,7 +341,7 @@ class DpsXml implements DpsInterface
         // Elemento DPS (estrutura atual)
         $dpsElement = $this->dom->createElement('DPS');
         $dpsElement->setAttribute('versao', self::DPS_VERSION);
-        $dpsElement->setAttribute('xmlns', self::DPS_NAMESPACE);
+        // $dpsElement->setAttribute('xmlns', self::DPS_NAMESPACE);
 
         $infDpsInner = $this->dom->createElement('infDPS');
         $infDpsInner->setAttribute('Id', $this->gerarId());
@@ -408,7 +408,7 @@ class DpsXml implements DpsInterface
 
             // Endereço do prestador
             $endereco = $prestador->obterEndereco();
-            if ($endereco->obterRua() !== null) {
+            if ($endereco->obterLogradouro() !== null) {
                 $endInner = $this->dom->createElement('end');
                 $prestInner->appendChild($endInner);
 
@@ -422,7 +422,7 @@ class DpsXml implements DpsInterface
                     $this->addChild($endNacInner, 'CEP', $endereco->obterCep(), true);
                 }
 
-                $this->addChild($endInner, 'xLgr', $endereco->obterRua(), true);
+                $this->addChild($endInner, 'xLgr', $endereco->obterLogradouro(), true);
                 $this->addChild($endInner, 'nro', $endereco->obterNumero() ?? '', true);
 
                 if ($endereco->obterComplemento() !== null) {
@@ -493,7 +493,7 @@ class DpsXml implements DpsInterface
 
             // Endereço do tomador
             $endereco = $tomador->obterEndereco();
-            if ($endereco->obterRua() !== null) {
+            if ($endereco->obterLogradouro() !== null) {
                 $endInner = $this->dom->createElement('end');
                 $tomaInner->appendChild($endInner);
 
@@ -507,7 +507,7 @@ class DpsXml implements DpsInterface
                     $this->addChild($endNacInner, 'CEP', $endereco->obterCep(), true);
                 }
 
-                $this->addChild($endInner, 'xLgr', $endereco->obterRua(), true);
+                $this->addChild($endInner, 'xLgr', $endereco->obterLogradouro(), true);
                 $this->addChild($endInner, 'nro', $endereco->obterNumero() ?? '', true);
 
                 if ($endereco->obterComplemento() !== null) {
@@ -628,7 +628,15 @@ class DpsXml implements DpsInterface
 
         $this->dom->appendChild($nfseElement);
 
-        return $this->dom->saveXML();
+        // Salva o XML garantindo encoding utf-8
+        $xml = $this->dom->saveXML();
+
+        // Garante que o XML está em utf-8
+        if (!mb_check_encoding($xml, 'utf-8')) {
+            $xml = mb_convert_encoding($xml, 'utf-8', 'auto');
+        }
+
+        return $xml;
     }
 
     /**
@@ -757,11 +765,11 @@ class DpsXml implements DpsInterface
 
         // Endereço do emitente
         $endereco = $prestador->obterEndereco();
-        if ($endereco->obterRua() !== null) {
+        if ($endereco->obterLogradouro() !== null) {
             $endNacInner = $this->dom->createElement('enderNac');
             $emitInner->appendChild($endNacInner);
 
-            $this->addChild($endNacInner, 'xLgr', $endereco->obterRua(), true);
+            $this->addChild($endNacInner, 'xLgr', $endereco->obterLogradouro(), true);
             $this->addChild($endNacInner, 'nro', $endereco->obterNumero() ?? '', true);
 
             if ($endereco->obterBairro() !== null) {
@@ -827,60 +835,61 @@ class DpsXml implements DpsInterface
      */
     private function adicionarSignature(DOMElement $nfseElement, string $idNfse): void
     {
-        $signatureElement = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'Signature');
+        // Cria o elemento Signature sem namespace prefixado para evitar conflitos
+        $signatureElement = $this->dom->createElement('Signature');
         $signatureElement->setAttribute('xmlns', self::SIGNATURE_NAMESPACE);
 
-        $signedInfoElement = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'SignedInfo');
+        $signedInfoElement = $this->dom->createElement('SignedInfo');
         $signatureElement->appendChild($signedInfoElement);
 
         // CanonicalizationMethod
-        $canonicalizationMethod = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'CanonicalizationMethod');
+        $canonicalizationMethod = $this->dom->createElement('CanonicalizationMethod');
         $canonicalizationMethod->setAttribute('Algorithm', 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315');
         $signedInfoElement->appendChild($canonicalizationMethod);
 
         // SignatureMethod
-        $signatureMethod = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'SignatureMethod');
+        $signatureMethod = $this->dom->createElement('SignatureMethod');
         $signatureMethod->setAttribute('Algorithm', 'http://www.w3.org/2000/09/xmldsig#rsa-sha1');
         $signedInfoElement->appendChild($signatureMethod);
 
         // Reference
-        $referenceElement = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'Reference');
+        $referenceElement = $this->dom->createElement('Reference');
         $referenceElement->setAttribute('URI', '#' . $idNfse);
         $signedInfoElement->appendChild($referenceElement);
 
         // Transforms
-        $transformsElement = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'Transforms');
+        $transformsElement = $this->dom->createElement('Transforms');
         $referenceElement->appendChild($transformsElement);
 
-        $transform1 = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'Transform');
+        $transform1 = $this->dom->createElement('Transform');
         $transform1->setAttribute('Algorithm', 'http://www.w3.org/2000/09/xmldsig#enveloped-signature');
         $transformsElement->appendChild($transform1);
 
-        $transform2 = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'Transform');
+        $transform2 = $this->dom->createElement('Transform');
         $transform2->setAttribute('Algorithm', 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315');
         $transformsElement->appendChild($transform2);
 
         // DigestMethod
-        $digestMethod = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'DigestMethod');
+        $digestMethod = $this->dom->createElement('DigestMethod');
         $digestMethod->setAttribute('Algorithm', 'http://www.w3.org/2000/09/xmldsig#sha1');
         $referenceElement->appendChild($digestMethod);
 
         // DigestValue (será preenchido durante a assinatura)
-        $digestValue = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'DigestValue', '');
+        $digestValue = $this->dom->createElement('DigestValue', '');
         $referenceElement->appendChild($digestValue);
 
         // SignatureValue (será preenchido durante a assinatura)
-        $signatureValue = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'SignatureValue', '');
+        $signatureValue = $this->dom->createElement('SignatureValue', '');
         $signatureElement->appendChild($signatureValue);
 
         // KeyInfo (será preenchido durante a assinatura)
-        $keyInfo = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'KeyInfo');
+        $keyInfo = $this->dom->createElement('KeyInfo');
         $signatureElement->appendChild($keyInfo);
 
-        $x509Data = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'X509Data');
+        $x509Data = $this->dom->createElement('X509Data');
         $keyInfo->appendChild($x509Data);
 
-        $x509Certificate = $this->dom->createElementNS(self::SIGNATURE_NAMESPACE, 'X509Certificate', '');
+        $x509Certificate = $this->dom->createElement('X509Certificate', '');
         $x509Data->appendChild($x509Certificate);
 
         $nfseElement->appendChild($signatureElement);

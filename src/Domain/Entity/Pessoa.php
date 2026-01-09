@@ -151,7 +151,7 @@ abstract class Pessoa
      */
     public function obterEndereco(): Endereco
     {
-        return $this->endereco ?? new \NfseNacional\Domain\ValueObject\Endereco();
+        return $this->endereco ?? new Endereco();
     }
 
     /**
@@ -173,7 +173,7 @@ abstract class Pessoa
      */
     public function obterTelefone(): Telefone
     {
-        return $this->telefone ?? new \NfseNacional\Domain\ValueObject\Telefone();
+        return $this->telefone ?? new Telefone();
     }
 
     /**

@@ -38,14 +38,13 @@ class AssinadorXml implements AssinadorXmlInterface
         }
 
         $certificado = $emitente->obterCertificado();
-        $senhaCertificado = $emitente->obterSenhaCertificado();
 
-        if (empty($certificado) || empty($senhaCertificado)) {
-            throw new Exception('Certificado ou senha não fornecidos!');
+        if ($certificado === null) {
+            throw new Exception('Certificado não fornecido!');
         }
 
         // Carrega o XML
-        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom = new DOMDocument('1.0', 'utf-8');
         $dom->preserveWhiteSpace = false;
         $dom->formatOutput = false;
 
@@ -53,14 +52,9 @@ class AssinadorXml implements AssinadorXmlInterface
             throw new Exception('Erro ao carregar XML!');
         }
 
-        // Carrega o certificado
-        $certData = $certificado;
-        if (file_exists($certificado)) {
-            $certData = file_get_contents($certificado);
-            if ($certData === false) {
-                throw new Exception('Não foi possível ler o arquivo do certificado!');
-            }
-        }
+        // Obtém conteúdo e senha do certificado
+        $certData = $certificado->obterConteudo();
+        $senhaCertificado = $certificado->obterSenha();
 
         // Tenta abrir o certificado PKCS#12
         $certInfo = [];
@@ -169,7 +163,14 @@ class AssinadorXml implements AssinadorXmlInterface
             $x509CertNodes->item(0)->nodeValue = $certPem;
         }
 
-        // Retorna o XML assinado
-        return $dom->saveXML();
+        // Retorna o XML assinado garantindo encoding utf-8
+        $xml = $dom->saveXML();
+
+        // Garante que o XML está em utf-8
+        if (!mb_check_encoding($xml, 'utf-8')) {
+            $xml = mb_convert_encoding($xml, 'utf-8', 'auto');
+        }
+
+        return $xml;
     }
 }

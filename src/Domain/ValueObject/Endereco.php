@@ -41,7 +41,7 @@ class Endereco
      * Nome da rua
      * @var string|null
      */
-    private ?string $rua = null;
+    private ?string $logradouro = null;
 
     /**
      * Número da rua
@@ -113,7 +113,7 @@ class Endereco
             $this->definirCidade($cidade);
         }
         if ($rua !== null) {
-            $this->definirRua($rua);
+            $this->definirLogradouro($rua);
         }
         if ($numero !== null) {
             $this->definirNumero($numero);
@@ -296,32 +296,32 @@ class Endereco
     /**
      * Define o nome da rua
      *
-     * @param string $rua
+     * @param string $logradouro
      * @throws InvalidArgumentException
      * @return self
      */
-    public function definirRua(string $rua): self
+    public function definirLogradouro(string $logradouro): self
     {
-        if (empty(trim($rua))) {
-            throw new InvalidArgumentException('Rua está vazia!');
+        if (empty(trim($logradouro))) {
+            throw new InvalidArgumentException('Logradouro está vazio!');
         }
 
-        if (strlen($rua) > 60) {
-            throw new InvalidArgumentException('Nome da rua excede o limite máximo de 60 caracteres!');
+        if (strlen($logradouro) > 60) {
+            throw new InvalidArgumentException('Logradouro excede o limite máximo de 60 caracteres!');
         }
 
-        $this->rua = $rua;
+        $this->logradouro = $logradouro;
         return $this;
     }
 
     /**
-     * Retorna o nome da rua
+     * Retorna o logradouro
      *
      * @return string|null
      */
-    public function obterRua(): ?string
+    public function obterLogradouro(): ?string
     {
-        return $this->rua;
+        return $this->logradouro;
     }
 
     /**
@@ -403,6 +403,26 @@ class Endereco
     public function obterComplemento(): ?string
     {
         return $this->complemento;
+    }
+
+    /**
+     * Retorna o endereço completo
+     *
+     * @return string
+     */
+    public function obterEnderecoCompleto(): string
+    {
+        return $this->logradouro . ', ' . $this->numero . ' - ' . $this->bairro . ', ' . $this->cidade . ' - ' . $this->estado . ' - ' . $this->cep;
+    }
+
+    /**
+     * Retorna o endereço completo como string
+     *
+     * @return string
+     */
+    public function __toString(): string
+    {
+        return $this->obterEnderecoCompleto();
     }
 }
 
