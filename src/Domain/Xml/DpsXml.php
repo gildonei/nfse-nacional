@@ -289,6 +289,26 @@ class DpsXml implements DpsInterface
     }
 
     /**
+     * Retorna o emitente
+     *
+     * @return Emitente|null
+     */
+    public function obterEmitente(): ?Emitente
+    {
+        return $this->emitente;
+    }
+
+    /**
+     * Retorna a entidade DPS
+     *
+     * @return Dps
+     */
+    public function obterDps(): Dps
+    {
+        return $this->dps;
+    }
+
+    /**
      * Converte os dados da DPS em XML
      *
      * @return string XML formatado

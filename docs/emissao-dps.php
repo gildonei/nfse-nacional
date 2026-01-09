@@ -40,6 +40,9 @@ use NfseNacional\Domain\ValueObject\Email;
 use NfseNacional\Domain\ValueObject\Endereco;
 use NfseNacional\Domain\ValueObject\Telefone;
 use NfseNacional\Domain\Xml\DpsXml;
+use NfseNacional\Application\Service\EnvioDpsService;
+use NfseNacional\Infrastructure\Security\AssinadorXml;
+use NfseNacional\Infrastructure\Http\HttpClient;
 
 // ============================================
 // CONFIGURAÇÕES BÁSICAS
@@ -53,8 +56,8 @@ $valorRecebido = 1000.00;
 // ============================================
 // CERTIFICADO DIGITAL
 // ============================================
-$caminhoCertificado = ''; // Substitua pelo caminho real
-$senhaCertificado = ''; // Senha certificado
+$caminhoCertificado = '/var/www/nfsenacional/docs/certificado.pfx'; // Substitua pelo caminho real
+$senhaCertificado = '12345678'; // Senha certificado
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -410,7 +413,9 @@ $senhaCertificado = ''; // Senha certificado
 
                 <?php
                 try {
-                    $xmlAssinado = assinarXml($xmlString, $emitente);
+                    // Usa a classe AssinadorXml para assinar o XML
+                    $assinador = new AssinadorXml();
+                    $xmlAssinado = $assinador->assinar($xmlString, $emitente, 'infNFSe', 'NFS');
                 ?>
                     <div class="alert alert-success">✓ XML assinado com sucesso!</div>
                     <h6>XML Assinado:</h6>
@@ -427,17 +432,47 @@ $senhaCertificado = ''; // Senha certificado
 
         <?php
         // ============================================
-        // EMISSÃO DA DPS
+        // ENVIO DA DPS PARA A API
         // ============================================
         ?>
         <div class="card mt-3">
             <div class="card-header">
-                <h5 class="mb-0">7. Emissão da DPS</h5>
+                <h5 class="mb-0">7. Envio da DPS para a API NFS-e Nacional</h5>
             </div>
             <div class="card-body">
-                <div class="alert alert-info">
-                    <strong>Nota:</strong> EM DESENVOLVIMENTO
+                <?php
+                try {
+                    // Cria as instâncias dos serviços
+                    $httpClient = new HttpClient();
+                    $envioDpsService = new EnvioDpsService($assinador, $httpClient);
+
+                    // Envia a DPS
+                    // A URL é determinada automaticamente baseada no tipo de ambiente da DPS
+                    // (1 = Produção, 2 = Homologação)
+                    // O emitente é obtido automaticamente do DpsXml
+                    $resposta = $envioDpsService->enviar($dpsXml);
+                ?>
+                    <h6>Resposta da API:</h6>
+                    <pre><?= htmlspecialchars(json_encode($resposta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))?></pre>
+
+                    <?php if (isset($resposta['statusCode']) && $resposta['statusCode'] >= 200 && $resposta['statusCode'] < 300): ?>
+                    <div class="alert alert-success mt-3">
+                        <strong>✓ DPS enviada com sucesso!</strong><br>
+                        <strong>Status:</strong> <?= htmlspecialchars((string) $resposta['statusCode'])?> - Requisição processada com sucesso
+                    </div>
+                    <?php else: ?>
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <strong>Status:</strong> <?= htmlspecialchars((string) ($resposta['statusCode'] ?? 'Desconhecido'))?><br>
+                        <strong>Resposta:</strong> Verifique os detalhes acima para identificar o problema.
+                    </div>
+                    <?php endif; ?>
+                <?php
+                } catch (Exception $e) {?>
+                <div class="alert alert-warning mb-0">
+                    <strong>Atenção:</strong> Não foi possível enviar a DPS. <?= htmlspecialchars($e->getMessage())?>
+                    <br><small>Isso é normal se a URL da API não estiver configurada corretamente ou se o certificado não for válido.</small>
                 </div>
+                <?php }?>
             </div>
         </div>
 
@@ -662,159 +697,3 @@ $senhaCertificado = ''; // Senha certificado
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
 </body>
 </html>
-
-<?php
-/**
- * Função para assinar XML com certificado digital
- *
- * @param string $xmlString XML a ser assinado
- * @param Emitente $emitente Emitente com certificado digital
- * @return string XML assinado
- * @throws Exception
- */
-function assinarXml(string $xmlString, Emitente $emitente): string
-{
-    // Verifica se a extensão OpenSSL está disponível
-    if (!extension_loaded('openssl')) {
-        throw new Exception('Extensão OpenSSL não está disponível!');
-    }
-
-    $certificado = $emitente->obterCertificado();
-    $senhaCertificado = $emitente->obterSenhaCertificado();
-
-    if (empty($certificado) || empty($senhaCertificado)) {
-        throw new Exception('Certificado ou senha não fornecidos!');
-    }
-
-    // Carrega o XML
-    $dom = new DOMDocument('1.0', 'UTF-8');
-    $dom->preserveWhiteSpace = false;
-    $dom->formatOutput = false;
-
-    if (!$dom->loadXML($xmlString)) {
-        throw new Exception('Erro ao carregar XML!');
-    }
-
-    // Carrega o certificado
-    $certData = null;
-    if (file_exists($certificado)) {
-        // Se for um arquivo, tenta carregar
-        $certData = file_get_contents($certificado);
-    } else {
-        // Se for conteúdo direto
-        $certData = $certificado;
-    }
-
-    // Tenta abrir o certificado PKCS#12
-    $cert = null;
-    $key = null;
-    if (!openssl_pkcs12_read($certData, $certInfo, $senhaCertificado)) {
-        throw new Exception('Erro ao ler certificado PKCS#12: ' . openssl_error_string());
-    }
-
-    $cert = $certInfo['cert'];
-    $key = $certInfo['pkey'];
-
-    // Obtém o ID do infNFSe para assinar
-    $xpath = new DOMXPath($dom);
-    $xpath->registerNamespace('ns', 'http://www.sped.fazenda.gov.br/nfse');
-    $xpath->registerNamespace('ds', 'http://www.w3.org/2000/09/xmldsig#');
-
-    $infNfseNodes = $xpath->query('//ns:infNFSe');
-
-    if ($infNfseNodes->length === 0) {
-        // Tenta sem namespace
-        $infNfseNodes = $xpath->query('//*[local-name()="infNFSe"]');
-        if ($infNfseNodes->length === 0) {
-            throw new Exception('Elemento infNFSe não encontrado no XML!');
-        }
-    }
-
-    $infNfse = $infNfseNodes->item(0);
-    $idNfse = $infNfse->getAttribute('Id');
-
-    if (empty($idNfse)) {
-        throw new Exception('ID do infNFSe não encontrado!');
-    }
-
-    // Encontra o elemento Signature
-    $signatureNodes = $xpath->query('//ds:Signature');
-    if ($signatureNodes->length === 0) {
-        // Tenta sem namespace
-        $signatureNodes = $xpath->query('//*[local-name()="Signature"]');
-        if ($signatureNodes->length === 0) {
-            throw new Exception('Elemento Signature não encontrado no XML!');
-        }
-    }
-
-    $signature = $signatureNodes->item(0);
-
-    // Canonicaliza o elemento infNFSe
-    $canonical = $infNfse->C14N(true, false);
-
-    // Calcula o digest SHA1
-    $digest = base64_encode(sha1($canonical, true));
-
-    // Atualiza o DigestValue
-    $digestValueNodes = $xpath->query('.//ds:DigestValue', $signature);
-    if ($digestValueNodes->length === 0) {
-        $digestValueNodes = $xpath->query('.//*[local-name()="DigestValue"]', $signature);
-    }
-    if ($digestValueNodes->length > 0) {
-        $digestValueNodes->item(0)->nodeValue = $digest;
-    }
-
-    // Canonicaliza o SignedInfo
-    $signedInfoNodes = $xpath->query('.//ds:SignedInfo', $signature);
-    if ($signedInfoNodes->length === 0) {
-        $signedInfoNodes = $xpath->query('.//*[local-name()="SignedInfo"]', $signature);
-    }
-    if ($signedInfoNodes->length === 0) {
-        throw new Exception('Elemento SignedInfo não encontrado!');
-    }
-
-    $signedInfo = $signedInfoNodes->item(0);
-    $signedInfoCanonical = $signedInfo->C14N(true, false);
-
-    // Assina o SignedInfo
-    $signatureValue = '';
-    if (!openssl_sign($signedInfoCanonical, $signatureValue, $key, OPENSSL_ALGO_SHA1)) {
-        $error = openssl_error_string();
-        throw new Exception('Erro ao assinar XML: ' . ($error ?: 'Erro desconhecido'));
-    }
-
-    $signatureValueBase64 = base64_encode($signatureValue);
-
-    // Atualiza o SignatureValue
-    $signatureValueNodes = $xpath->query('.//ds:SignatureValue', $signature);
-    if ($signatureValueNodes->length === 0) {
-        $signatureValueNodes = $xpath->query('.//*[local-name()="SignatureValue"]', $signature);
-    }
-    if ($signatureValueNodes->length > 0) {
-        $signatureValueNodes->item(0)->nodeValue = $signatureValueBase64;
-    }
-
-    // Extrai o certificado X509
-    $certResource = openssl_x509_read($cert);
-    if (!$certResource) {
-        throw new Exception('Erro ao ler certificado X509!');
-    }
-
-    openssl_x509_export($certResource, $certPem);
-    $certPem = str_replace(['-----BEGIN CERTIFICATE-----', '-----END CERTIFICATE-----', "\n", "\r"], '', $certPem);
-    $certPem = trim($certPem);
-
-    // Atualiza o X509Certificate
-    $x509CertNodes = $xpath->query('.//ds:X509Certificate', $signature);
-    if ($x509CertNodes->length === 0) {
-        $x509CertNodes = $xpath->query('.//*[local-name()="X509Certificate"]', $signature);
-    }
-    if ($x509CertNodes->length > 0) {
-        $x509CertNodes->item(0)->nodeValue = $certPem;
-    }
-
-    // Retorna o XML assinado
-    return $dom->saveXML();
-}
-?>
-
