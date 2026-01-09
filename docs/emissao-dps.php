@@ -199,11 +199,6 @@ $valorRecebido = 1000.00;
                         optanteSimplesNacional: OptanteSimplesNacional::OptanteMEEPP, // 1 = Não Optante, 2 = Optante MEI, 3 = Optante ME/EPP
                         regimeEspecialTributacao: RegimeEspecialTributacaoMunicipal::Nenhum
                     );
-
-                    // Definir regime de tributação simples nacional
-                    $prestador->definirRegimeTributacaoSimplesNacional(
-                        RegimeTributacaoSimplesNacional::RegimeApuracaoTributosFederaisSNISSQNNfse
-                    );
                 ?>
                 <p><strong>Nome:</strong> <?= htmlspecialchars($prestador->obterNome())?></p>
                 <p><strong>CNPJ:</strong> <?= htmlspecialchars($prestador->obterDocumento()?->obterFormatado() ?? '')?></p>
@@ -416,7 +411,7 @@ $valorRecebido = 1000.00;
                     );
 
                     // Definir tipo de benefício municipal (opcional)
-                    $dpsXml->definirTipoBeneficioMunicipal($tipoBeneficioMunicipal);
+                    // $dpsXml->definirTipoBeneficioMunicipal($tipoBeneficioMunicipal);
                     $xmlString = $dpsXml->render();
                     ?>
                     <div class="alert alert-success">✓ XML gerado com sucesso!</div>
@@ -572,7 +567,7 @@ $valorRecebido = 1000.00;
             <div class="card-body">
                 <?php
                 try {
-                    // Exemplo com Profissional Autônomo
+                // Exemplo com Profissional Autônomo
                 $prestadorPA = new Prestador(
                     nome: 'Profissional Autônomo',
                     documento: new Cpf('98765432100'),

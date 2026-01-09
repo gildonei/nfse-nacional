@@ -188,8 +188,13 @@ class SefinNacionalService
         // Assina o XML
         $xmlAssinado = $this->assinador->assinar($xmlString, $emitente, 'infDPS', 'DPS');
 
-        // Remove a declaração XML se existir (a API não deve receber com declaração)
+        // Remove a declaração XML se existir (será adicionada novamente)
         $xmlAssinado = preg_replace('/<\?xml[^>]*\?>\s*/', '', $xmlAssinado);
+        $xmlAssinado = trim($xmlAssinado);
+
+        // Remove todas as quebras de linha e espaços em branco desnecessários
+        $xmlAssinado = preg_replace('/\s+/', ' ', $xmlAssinado);
+        $xmlAssinado = preg_replace('/>\s+</', '><', $xmlAssinado);
         $xmlAssinado = trim($xmlAssinado);
 
         // Garante que o XML está em utf-8
@@ -263,6 +268,11 @@ class SefinNacionalService
         $xmlNfseAssinado = preg_replace('/<\?xml[^>]*\?>\s*/', '', $xmlNfseAssinado);
         $xmlNfseAssinado = trim($xmlNfseAssinado);
 
+        // Remove todas as quebras de linha e espaços em branco desnecessários
+        $xmlNfseAssinado = preg_replace('/\s+/', ' ', $xmlNfseAssinado);
+        $xmlNfseAssinado = preg_replace('/>\s+</', '><', $xmlNfseAssinado);
+        $xmlNfseAssinado = trim($xmlNfseAssinado);
+
         // Garante que o XML está em utf-8
         if (!mb_check_encoding($xmlNfseAssinado, 'utf-8')) {
             $xmlNfseAssinado = mb_convert_encoding($xmlNfseAssinado, 'utf-8', 'auto');
@@ -317,6 +327,11 @@ class SefinNacionalService
 
         // Remove a declaração XML se existir (a API não deve receber com declaração)
         $xmlEventoAssinado = preg_replace('/<\?xml[^>]*\?>\s*/', '', $xmlEventoAssinado);
+        $xmlEventoAssinado = trim($xmlEventoAssinado);
+
+        // Remove todas as quebras de linha e espaços em branco desnecessários
+        $xmlEventoAssinado = preg_replace('/\s+/', ' ', $xmlEventoAssinado);
+        $xmlEventoAssinado = preg_replace('/>\s+</', '><', $xmlEventoAssinado);
         $xmlEventoAssinado = trim($xmlEventoAssinado);
 
         // Garante que o XML está em utf-8

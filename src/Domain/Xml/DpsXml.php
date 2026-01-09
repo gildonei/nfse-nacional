@@ -322,8 +322,8 @@ class DpsXml implements DpsInterface
 
         // Elemento raiz NFSe
         $nfseElement = $this->dom->createElement('NFSe');
+        $nfseElement->setAttribute('xmlns', self::DPS_NAMESPACE);
         $nfseElement->setAttribute('versao', self::DPS_VERSION);
-        // $nfseElement->setAttribute('xmlns', self::DPS_NAMESPACE);
 
         // Elemento infNFSe
         $infNfseElement = $this->dom->createElement('infNFSe');
@@ -340,8 +340,8 @@ class DpsXml implements DpsInterface
 
         // Elemento DPS (estrutura atual)
         $dpsElement = $this->dom->createElement('DPS');
+        $dpsElement->setAttribute('xmlns', self::DPS_NAMESPACE);
         $dpsElement->setAttribute('versao', self::DPS_VERSION);
-        // $dpsElement->setAttribute('xmlns', self::DPS_NAMESPACE);
 
         $infDpsInner = $this->dom->createElement('infDPS');
         $infDpsInner->setAttribute('Id', $this->gerarId());
