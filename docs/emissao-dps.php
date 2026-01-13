@@ -134,7 +134,7 @@ $valorRecebido = 1000.00;
                             cep: '88010000',
                             estado: 'SC',
                             cidade: 'Florianópolis',
-                            rua: 'Rua Principal',
+                            logradouro: 'Rua Principal',
                             numero: '123',
                             codigoCidade: $codigoMunicipio,
                             complemento: 'Sala 101'
@@ -186,7 +186,7 @@ $valorRecebido = 1000.00;
                             cep: '88010000',
                             estado: 'SC',
                             cidade: 'Florianópolis',
-                            rua: 'Rua Principal',
+                            logradouro: 'Rua Principal',
                             numero: '123',
                             codigoCidade: $codigoMunicipio,
                             complemento: 'Sala 101'
@@ -239,7 +239,7 @@ $valorRecebido = 1000.00;
                             cep: '88010000',
                             estado: 'SC',
                             cidade: 'Florianópolis',
-                            rua: 'Avenida Secundária',
+                            logradouro: 'Avenida Secundária',
                             numero: '456',
                             codigoCidade: $codigoMunicipio,
                             complemento: 'Andar 2'
@@ -536,7 +536,7 @@ $valorRecebido = 1000.00;
                             cep: '88010000',
                             estado: 'SC',
                             cidade: 'Florianópolis',
-                            rua: 'Rua Exemplo',
+                            logradouro: 'Rua Exemplo',
                             numero: '789',
                             codigoCidade: $codigoMunicipio
                         ),

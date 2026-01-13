@@ -408,7 +408,7 @@ class SefinNacionalService
      *
      * @return string URL base da API
      */
-    private function obterUrlBase(): string
+    public function obterUrlBase(): string
     {
         // Usa o ambiente configurado no serviço
         return ($this->tipoAmbiente === self::AMBIENTE_PRODUCAO)

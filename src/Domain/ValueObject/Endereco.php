@@ -83,7 +83,7 @@ class Endereco
      * @param string|null $cep
      * @param string|null $estado
      * @param string|null $cidade
-     * @param string|null $rua
+     * @param string|null $logradouro
      * @param string|null $numero
      * @param int|null $codigoCidade
      * @param string|null $complemento
@@ -94,7 +94,7 @@ class Endereco
         ?string $cep = null,
         ?string $estado = null,
         ?string $cidade = null,
-        ?string $rua = null,
+        ?string $logradouro = null,
         ?string $numero = null,
         ?int $codigoCidade = null,
         ?string $complemento = null,
@@ -112,8 +112,8 @@ class Endereco
         if ($cidade !== null) {
             $this->definirCidade($cidade);
         }
-        if ($rua !== null) {
-            $this->definirLogradouro($rua);
+        if ($logradouro !== null) {
+            $this->definirLogradouro($logradouro);
         }
         if ($numero !== null) {
             $this->definirNumero($numero);
