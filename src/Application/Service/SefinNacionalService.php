@@ -172,8 +172,8 @@ class SefinNacionalService
      */
     public function enviarDps(DpsXml $dpsXml): array
     {
-        // Obtém o XML gerado
-        $xmlString = $dpsXml->render();
+        // Obtém o XML da DPS (apenas a estrutura DPS, não o envelope NFSe)
+        $xmlString = $dpsXml->renderDps();
 
         // Obtém o emitente do DpsXml
         $emitente = $dpsXml->obterEmitente();

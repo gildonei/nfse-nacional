@@ -46,10 +46,9 @@ use NfseNacional\Infrastructure\Security\AssinadorXml;
 // CONFIGURAÇÕES BÁSICAS
 // ============================================
 $codigoMunicipio = 4205407; // Florianópolis/SC - Pode ser obtido no site do viaCep https://www.viacep.com.br
-$numeroDps = '1';
+$numeroNFSe = $numeroDps = 7;
 $serie = '1';
-$valorServico = 1000.00;
-$valorRecebido = 1000.00;
+$valorServico = $valorRecebido = 1300.00;
 ?>
 <!doctype html>
 <html lang="pt-BR">
@@ -197,6 +196,7 @@ $valorRecebido = 1000.00;
                             numero: 33334444
                         ),
                         optanteSimplesNacional: OptanteSimplesNacional::OptanteMEEPP, // 1 = Não Optante, 2 = Optante MEI, 3 = Optante ME/EPP
+                        regimeTributacaoSimplesNacional: RegimeTributacaoSimplesNacional::RegimeApuracaoTributosFederaisMunicipalSN, // Obrigatório para OptanteMEEPP (1=caixa)
                         regimeEspecialTributacao: RegimeEspecialTributacaoMunicipal::Nenhum
                     );
                 ?>
@@ -281,13 +281,13 @@ $valorRecebido = 1000.00;
                 <?php
                 try {
                     $dps = new Dps();
-                    $dps->definirPrestador($prestador)
+                    $dps->definirNumeroDps($numeroDps)
+                        ->definirPrestador($prestador)
                         ->definirTomador($tomador)
                         ->definirTipoAmbiente(SefinNacionalService::AMBIENTE_HOMOLOGACAO) // 1 = Produção, 2 = Homologação
                         ->definirDataHoraEmissao(new DateTime('now', new \DateTimeZone('America/Sao_Paulo')))
                         ->definirVersaoAplicacao('1.0')
                         ->definirSerie($serie)
-                        ->definirNumeroDps($numeroDps)
                         ->definirDataCompetencia(new DateTime('now', new \DateTimeZone('America/Sao_Paulo')))
                         // Tipo de emitente será determinado automaticamente pela comparação dos documentos:
                         // - Se documento do Emitente = documento do Prestador → 1 (Prestador)
@@ -298,16 +298,17 @@ $valorRecebido = 1000.00;
                         ->definirCodigoLocalPrestacao((string) $codigoMunicipio)
                         ->definirModoPrestacao(ModoPrestacao::ConsumoNoBrasil) // 0 = Desconhecido, 1 = Transfronteiriço, 2 = Consumo no Brasil, 3 = Presença Comercial no Exterior, 4 = Movimento Temporário de Pessoas Físicas
                         ->definirVinculoEntrePartes(VinculoEntrePartes::SemVinculo) // 0 = Sem vínculo, 1 = Controlada, 2 = Controladora, 3 = Coligada, 4 = Matriz, 5 = Filial ou sucursal, 6 = Outro vínculo
-                        ->definirCodigoTributacaoNacional('1401') // Código de tributação nacional
+                        ->definirCodigoTributacaoNacional('010601') // Código de tributação nacional (6 dígitos obrigatórios)
                         ->definirDescricaoServico('Serviço de consultoria em tecnologia da informação')
                         ->definirValorServico($valorServico)
                         ->definirValorRecebido($valorRecebido)
                         ->definirTributacaoIssqn(TributacaoIssqn::OperacaoTributavel); // 1 = Operação tributável, 2 = Imunidade, 3 = Exportação de serviço, 4 = Não Incidência
 
                     // Campos opcionais
-                    if ($dps->obterCodigoTributacaoMunicipal() === null) {
-                        $dps->definirCodigoTributacaoMunicipal('1401');
-                    }
+                    // Nota: cTribMun é o código de tributação municipal (formato varia por município)
+                    // if ($dps->obterCodigoTributacaoMunicipal() === null) {
+                    //     $dps->definirCodigoTributacaoMunicipal('010601');
+                    // }
                 ?>
 
                 <p><strong>Número DPS:</strong> <?= htmlspecialchars($dps->obterNumeroDps() ?? '')?></p>
@@ -339,9 +340,6 @@ $valorRecebido = 1000.00;
             <div class="card-body">
                 <?php
                 try {
-                    // Número da NFSe
-                    $numeroNFSe = 5;
-
                     // Descrição do código da NBS (máximo 600 caracteres)
                     $descricaoNBS = 'Serviços de pesquisa e desenvolvimento em tecnologia da informação e comunicação (TIC)';
 
@@ -412,11 +410,22 @@ $valorRecebido = 1000.00;
 
                     // Definir tipo de benefício municipal (opcional)
                     // $dpsXml->definirTipoBeneficioMunicipal($tipoBeneficioMunicipal);
-                    $xmlString = $dpsXml->render();
+
+                    // renderDps() gera apenas a estrutura DPS (para envio ao Sefin Nacional)
+                    $xmlStringDps = $dpsXml->renderDps();
+
+                    // render() gera o envelope NFSe completo (para visualização)
+                    $xmlStringNfse = $dpsXml->render();
                     ?>
                     <div class="alert alert-success">✓ XML gerado com sucesso!</div>
-                    <h6>XML Gerado (antes da assinatura):</h6>
-                    <pre><?= htmlspecialchars($xmlString)?></pre>
+
+                    <h6>XML da DPS (para envio - antes da assinatura):</h6>
+                    <pre><?= htmlspecialchars($xmlStringDps)?></pre>
+
+                    <details class="mt-3">
+                        <summary><strong>XML NFSe Completo (apenas visualização)</strong></summary>
+                        <pre class="mt-2"><?= htmlspecialchars($xmlStringNfse)?></pre>
+                    </details>
 
                     <?php
                 } catch (Exception $e) {?>
@@ -434,12 +443,13 @@ $valorRecebido = 1000.00;
 
                 <?php
                 try {
-                    // Usa a classe AssinadorXml para assinar o XML
+                    // Usa a classe AssinadorXml para assinar o XML da DPS
+                    // Tag 'infDPS' dentro do elemento 'DPS'
                     $assinador = new AssinadorXml();
-                    $xmlAssinado = $assinador->assinar($xmlString, $emitente, 'infNFSe', 'NFS');
+                    $xmlAssinado = $assinador->assinar($xmlStringDps, $emitente, 'infDPS', 'DPS');
                 ?>
                     <div class="alert alert-success">✓ XML assinado com sucesso!</div>
-                    <h6>XML Assinado:</h6>
+                    <h6>XML da DPS Assinado:</h6>
                     <pre class="mb-0"><?= htmlspecialchars($xmlAssinado)?></pre>
                 <?php
                 } catch (Exception $e) {?>
@@ -499,6 +509,66 @@ $valorRecebido = 1000.00;
                         <strong>✓ DPS enviada com sucesso!</strong><br>
                         <strong>Status:</strong> <?= htmlspecialchars((string) $resposta['statusCode'])?> - Requisição processada com sucesso
                     </div>
+
+                    <?php
+                    // Se statusCode for 201 e existir nfseXmlGZipB64, exibe o XML da NFS-e
+                    if ($resposta['statusCode'] === 201) {
+                        $body = $resposta['body'] ?? null;
+
+                        // Verifica se o body contém nfseXmlGZipB64 (quando body é array/objeto)
+                        if (is_array($body) && isset($body['nfseXmlGZipB64'])) {
+                            $nfseXmlGZipB64 = $body['nfseXmlGZipB64'];
+
+                            // Exibe informações da resposta
+                            ?>
+                            <div class="card mb-3">
+                                <div class="card-header bg-info text-white"><strong>Informações da NFS-e Emitida</strong></div>
+                                <div class="card-body">
+                                    <p><strong>Tipo Ambiente:</strong> <?= htmlspecialchars((string)($body['tipoAmbiente'] ?? 'N/A')) ?></p>
+                                    <p><strong>Versão Aplicativo:</strong> <?= htmlspecialchars($body['versaoAplicativo'] ?? 'N/A') ?></p>
+                                    <p><strong>Data/Hora Processamento:</strong> <?= htmlspecialchars($body['dataHoraProcessamento'] ?? 'N/A') ?></p>
+                                    <?php if (isset($body['chaveAcesso'])): ?>
+                                    <p><strong>Chave de Acesso:</strong> <code><?= htmlspecialchars($body['chaveAcesso']) ?></code></p>
+                                    <?php endif; ?>
+                                    <?php if (isset($body['idDPS'])): ?>
+                                    <p><strong>ID DPS:</strong> <code><?= htmlspecialchars($body['idDPS']) ?></code></p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php
+
+                            // Decodifica Base64 e descomprime GZip
+                            $xmlDecodificado = base64_decode($nfseXmlGZipB64, true);
+                            if ($xmlDecodificado !== false) {
+                                $xmlNfse = @gzdecode($xmlDecodificado);
+                                if ($xmlNfse !== false) {
+                                    // Formata o XML para exibição
+                                    $domNfse = new DOMDocument('1.0', 'UTF-8');
+                                    $domNfse->preserveWhiteSpace = false;
+                                    $domNfse->formatOutput = true;
+                                    if (@$domNfse->loadXML($xmlNfse)) {
+                                        $xmlFormatado = $domNfse->saveXML();
+                                    } else {
+                                        $xmlFormatado = $xmlNfse;
+                                    }
+                                    ?>
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-success text-white"><strong>XML da NFS-e Emitida</strong></div>
+                                        <div class="card-body">
+                                            <pre style="max-height: 600px; overflow-y: auto;"><?= htmlspecialchars($xmlFormatado) ?></pre>
+                                        </div>
+                                    </div>
+                                    <?php
+                                } else {
+                                    echo '<div class="alert alert-warning">Não foi possível descomprimir o XML (GZip).</div>';
+                                }
+                            } else {
+                                echo '<div class="alert alert-warning">Não foi possível decodificar o XML (Base64).</div>';
+                            }
+                        }
+                    }
+                    ?>
+
                     <?php else: ?>
                     <div class="alert alert-warning mt-3 mb-0">
                         <strong>Status:</strong> <?= htmlspecialchars((string) ($resposta['statusCode'] ?? 'Desconhecido'))?><br>

@@ -25,7 +25,7 @@ use DOMDocument;
 // ============================================
 // CONFIGURAÇÕES BÁSICAS
 // ============================================
-$chaveAcesso = '';
+$chaveAcesso = '42054072241039410000123000000000000126019973355918';
 $tipoAmbiente = SefinNacionalService::AMBIENTE_HOMOLOGACAO; // ou AMBIENTE_PRODUCAO
 ?>
 <!doctype html>

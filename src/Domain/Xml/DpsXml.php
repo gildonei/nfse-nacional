@@ -309,10 +309,58 @@ class DpsXml implements DpsInterface
     }
 
     /**
-     * Converte os dados da DPS em XML
+     * Gera apenas a estrutura DPS (para envio ao Sefin Nacional)
+     *
+     * O Sefin Nacional espera receber apenas o XML da DPS assinada,
+     * não o envelope NFSe completo. O envelope NFSe é retornado pela API
+     * após a aprovação da DPS.
+     *
+     * @return string XML da DPS formatado
+     * @throws InvalidArgumentException
+     */
+    public function renderDps(): string
+    {
+        $this->dom = new DOMDocument('1.0', 'utf-8');
+        $this->dom->preserveWhiteSpace = false;
+        $this->dom->formatOutput = false;
+
+        // Elemento raiz DPS
+        $dpsElement = $this->dom->createElement('DPS');
+        $dpsElement->setAttribute('xmlns', self::DPS_NAMESPACE);
+        $dpsElement->setAttribute('versao', self::DPS_VERSION);
+
+        // Elemento infDPS
+        $infDpsInner = $this->dom->createElement('infDPS');
+        $infDpsInner->setAttribute('Id', $this->gerarId());
+
+        // Monta a estrutura da DPS
+        $this->montarInfDps($infDpsInner);
+
+        $dpsElement->appendChild($infDpsInner);
+
+        // Elemento Signature (estrutura básica - será assinado posteriormente)
+        // Usa o Id do infDPS para a assinatura
+        $this->adicionarSignature($dpsElement, $infDpsInner->getAttribute('Id'));
+
+        $this->dom->appendChild($dpsElement);
+
+        // Salva o XML garantindo encoding utf-8
+        $xml = $this->dom->saveXML();
+
+        // Garante que o XML está em utf-8
+        if (!mb_check_encoding($xml, 'utf-8')) {
+            $xml = mb_convert_encoding($xml, 'utf-8', 'auto');
+        }
+
+        return $xml;
+    }
+
+    /**
+     * Converte os dados da DPS em XML (formato NFSe completo - para visualização)
      *
      * @return string XML formatado
      * @throws InvalidArgumentException
+     * @deprecated Use renderDps() para envio ao Sefin Nacional
      */
     public function render(): string
     {
@@ -346,6 +394,40 @@ class DpsXml implements DpsInterface
         $infDpsInner = $this->dom->createElement('infDPS');
         $infDpsInner->setAttribute('Id', $this->gerarId());
 
+        // Monta a estrutura do infDPS usando o método compartilhado
+        $this->montarInfDps($infDpsInner);
+
+        $dpsElement->appendChild($infDpsInner);
+        $infNfseElement->appendChild($dpsElement);
+
+        // Adiciona infNFSe ao NFSe
+        $nfseElement->appendChild($infNfseElement);
+
+        // Elemento Signature (estrutura básica - será assinado posteriormente)
+        $this->adicionarSignature($nfseElement, $infNfseElement->getAttribute('Id'));
+
+        $this->dom->appendChild($nfseElement);
+
+        // Salva o XML garantindo encoding utf-8
+        $xml = $this->dom->saveXML();
+
+        // Garante que o XML está em utf-8
+        if (!mb_check_encoding($xml, 'utf-8')) {
+            $xml = mb_convert_encoding($xml, 'utf-8', 'auto');
+        }
+
+        return $xml;
+    }
+
+    /**
+     * Monta a estrutura do infDPS
+     *
+     * @param DOMElement $infDpsInner Elemento infDPS
+     * @return void
+     * @throws InvalidArgumentException
+     */
+    private function montarInfDps(DOMElement $infDpsInner): void
+    {
         // Campos obrigatórios do infDPS
         $this->addChild($infDpsInner, 'tpAmb', (string) $this->dps->obterTipoAmbiente(), true);
         $this->addChild($infDpsInner, 'dhEmi', $this->dps->obterDataHoraEmissao()?->format('Y-m-d\TH:i:sP'), true);
@@ -355,7 +437,6 @@ class DpsXml implements DpsInterface
         $this->addChild($infDpsInner, 'dCompet', $this->dps->obterDataCompetencia()->format('Y-m-d'), true);
 
         // tpEmit - Tipo de emitente (validado pelo enum)
-        // Se não estiver definido, determina automaticamente pela comparação dos documentos
         $tipoEmitente = $this->dps->obterTipoEmitente();
         if ($tipoEmitente === null) {
             $tipoEmitente = $this->determinarTipoEmitente();
@@ -402,27 +483,34 @@ class DpsXml implements DpsInterface
                 $this->addChild($prestInner, 'IM', (string) $prestador->obterCmc());
             }
 
-            if ($prestador->obterNome() !== null) {
+            // Determina se o prestador é o emitente da DPS
+            $tipoEmitentePrest = $this->dps->obterTipoEmitente() ?? $this->determinarTipoEmitente();
+            $prestadorEhEmitente = $tipoEmitentePrest->valor() === 1;
+
+            // xNome - Nome/Razão Social do prestador
+            // Nota: NÃO deve ser informado quando o prestador for o emitente da DPS (tpEmit = 1)
+            if (!$prestadorEhEmitente && $prestador->obterNome() !== null) {
                 $this->addChild($prestInner, 'xNome', $prestador->obterNome());
             }
 
             // Endereço do prestador
+            // Nota: NÃO deve ser informado quando o prestador for o emitente da DPS (tpEmit = 1)
+
+            if (!$prestadorEhEmitente) {
             $endereco = $prestador->obterEndereco();
-            if ($endereco->obterLogradouro() !== null) {
+                if ($endereco->obterLogradouro() !== null) {
                 $endInner = $this->dom->createElement('end');
                 $prestInner->appendChild($endInner);
 
                 if ($endereco->obterCodigoCidade() !== null && $endereco->obterCep() !== null) {
                     $endNacInner = $this->dom->createElement('endNac');
                     $endInner->appendChild($endNacInner);
+                        // Estrutura endNac: cMun, CEP (UF não faz parte de endNac)
                     $this->addChild($endNacInner, 'cMun', (string) $endereco->obterCodigoCidade(), true);
-                    if ($endereco->obterEstado() !== null) {
-                        $this->addChild($endNacInner, 'UF', $endereco->obterEstado(), true);
-                    }
                     $this->addChild($endNacInner, 'CEP', $endereco->obterCep(), true);
                 }
 
-                $this->addChild($endInner, 'xLgr', $endereco->obterLogradouro(), true);
+                    $this->addChild($endInner, 'xLgr', $endereco->obterLogradouro(), true);
                 $this->addChild($endInner, 'nro', $endereco->obterNumero() ?? '', true);
 
                 if ($endereco->obterComplemento() !== null) {
@@ -430,6 +518,7 @@ class DpsXml implements DpsInterface
                 }
 
                 $this->addChild($endInner, 'xBairro', $endereco->obterBairro() ?? '', true);
+                }
             }
 
             // Telefone do prestador
@@ -444,16 +533,10 @@ class DpsXml implements DpsInterface
                 $this->addChild($prestInner, 'email', $email->obterEndereco());
             }
 
-            // vincPrest - Vínculo entre partes (validado pelo enum)
-            $vinculoEntrePartes = $this->dps->obterVinculoEntrePartes();
-            if ($vinculoEntrePartes !== null) {
-                $this->addChild($prestInner, 'vincPrest', (string) $vinculoEntrePartes->valor());
-            }
-
-            // Regime tributário
+            // Regime tributário (deve vir antes de vincPrest)
             $regTribInner = $this->dom->createElement('regTrib');
             $prestInner->appendChild($regTribInner);
-            // opSimpNac - Optante Simples Nacional (validado pelo enum)
+            // opSimpNac - Optante Simples Nacional
             $optanteSimplesNacional = $prestador->obterOptanteSimplesNacional();
             if ($optanteSimplesNacional === null) {
                 throw new InvalidArgumentException('Optante Simples Nacional é obrigatório!');
@@ -461,9 +544,18 @@ class DpsXml implements DpsInterface
             /** @var \NfseNacional\Domain\Enum\OptanteSimplesNacional $optanteSimplesNacional */
             $this->addChild($regTribInner, 'opSimpNac', (string) $optanteSimplesNacional->valor(), true);
 
-            // regApTribSN - Regime de apuração tributação simples nacional (validado pelo enum)
+            // regApTribSN - Regime de apuração tributação simples nacional
+            // Obrigatório quando opSimpNac = 3 (Optante ME/EPP)
+            // Valores do enum OptanteSimplesNacional: 1=NaoOptante, 2=OptanteMEI, 3=OptanteMEEPP
             $regimeTributacaoSimplesNacional = $prestador->obterRegimeTributacaoSimplesNacional();
-            if ($regimeTributacaoSimplesNacional !== null) {
+            if ($optanteSimplesNacional->valor() === 3) {
+                // Se é optante do Simples Nacional ME/EPP, regApTribSN é obrigatório
+                // 1 = Regime de caixa, 2 = Regime de competência
+                $valorRegime = $regimeTributacaoSimplesNacional !== null
+                    ? $regimeTributacaoSimplesNacional->valor()
+                    : 1; // Valor padrão: Regime de caixa
+                $this->addChild($regTribInner, 'regApTribSN', (string) $valorRegime, true);
+            } elseif ($regimeTributacaoSimplesNacional !== null) {
                 $this->addChild($regTribInner, 'regApTribSN', (string) $regimeTributacaoSimplesNacional->valor());
             }
 
@@ -500,10 +592,8 @@ class DpsXml implements DpsInterface
                 if ($endereco->obterCodigoCidade() !== null && $endereco->obterCep() !== null) {
                     $endNacInner = $this->dom->createElement('endNac');
                     $endInner->appendChild($endNacInner);
+                    // Estrutura endNac: cMun, CEP (UF não faz parte de endNac)
                     $this->addChild($endNacInner, 'cMun', (string) $endereco->obterCodigoCidade(), true);
-                    if ($endereco->obterEstado() !== null) {
-                        $this->addChild($endNacInner, 'UF', $endereco->obterEstado(), true);
-                    }
                     $this->addChild($endNacInner, 'CEP', $endereco->obterCep(), true);
                 }
 
@@ -529,7 +619,7 @@ class DpsXml implements DpsInterface
                 $this->addChild($tomaInner, 'email', $email->obterEndereco());
             }
 
-            // cNaoNIF - Motivo de não informar NIF (validado pelo enum)
+            // cNaoNIF - Motivo de não informar NIF
             $motivoNaoInformarNif = $tomador->obterMotivoNaoInformarNif();
             if ($motivoNaoInformarNif !== null) {
                 /** @var \NfseNacional\Domain\Enum\MotivoNaoInformarNif $motivoNaoInformarNif */
@@ -549,12 +639,7 @@ class DpsXml implements DpsInterface
             $this->addChild($locPrestInner, 'cPaisPrestacao', (string) $this->dps->obterCodigoPaisPrestacao());
         }
 
-        // mdPrestacao - Modo de prestação (validado pelo enum)
-        $modoPrestacao = $this->dps->obterModoPrestacao();
-        if ($modoPrestacao !== null) {
-            /** @var \NfseNacional\Domain\Enum\ModoPrestacao $modoPrestacao */
-            $this->addChild($locPrestInner, 'mdPrestacao', (string) $modoPrestacao->valor());
-        }
+        // Nota: mdPrestacao não faz parte da estrutura locPrest no schema NFS-e Nacional
 
         $cServInner = $this->dom->createElement('cServ');
         $servInner->appendChild($cServInner);
@@ -580,7 +665,12 @@ class DpsXml implements DpsInterface
         $vServPrestInner = $this->dom->createElement('vServPrest');
         $valoresInner->appendChild($vServPrestInner);
 
-        if ($this->dps->obterValorRecebido() !== null) {
+        // vReceb - Valor recebido
+        // Nota: NÃO deve ser informado quando o prestador ou tomador é o emitente da DPS
+        // tpEmit: 1 = Prestador é emitente, 2 = Tomador é emitente, 3 = Intermediário é emitente
+        $tipoEmitente = $this->dps->obterTipoEmitente() ?? $this->determinarTipoEmitente();
+        $deveInformarVReceb = $tipoEmitente->valor() === 3; // Apenas quando intermediário é emitente
+        if ($deveInformarVReceb && $this->dps->obterValorRecebido() !== null) {
             $this->addChild($vServPrestInner, 'vReceb', $this->formatarValor($this->dps->obterValorRecebido()));
         }
 
@@ -593,50 +683,45 @@ class DpsXml implements DpsInterface
         $tribMunInner = $this->dom->createElement('tribMun');
         $tribInner->appendChild($tribMunInner);
 
-        // tribISSQN - Tributação ISSQN (validado pelo enum)
+        // tribISSQN - Tributação ISSQN (obrigatório)
         $tributacaoIssqn = $this->dps->obterTributacaoIssqn();
         if ($tributacaoIssqn !== null) {
             /** @var \NfseNacional\Domain\Enum\TributacaoIssqn $tributacaoIssqn */
             $this->addChild($tribMunInner, 'tribISSQN', (string) $tributacaoIssqn->valor(), true);
         } else {
-            $this->addChild($tribMunInner, 'tribISSQN', '0', true);
+            // 1 = Operação tributável (valor padrão)
+            $this->addChild($tribMunInner, 'tribISSQN', '1', true);
         }
 
-        if ($this->dps->obterTipoRetencaoIssqn() !== null) {
-            $this->addChild($tribMunInner, 'tpRetISSQN', (string) $this->dps->obterTipoRetencaoIssqn());
-        }
-
+        // pAliq - Alíquota (opcional, mas deve vir antes de tpRetISSQN se informado)
         if ($this->dps->obterPercentualAliquota() !== null) {
             $this->addChild($tribMunInner, 'pAliq', $this->formatarValor($this->dps->obterPercentualAliquota()));
         }
 
-        // Totalização de Tributos
+        // tpRetISSQN - Tipo de retenção ISSQN (obrigatório)
+        // 1 = Não retido, 2 = Retido pelo tomador, 3 = Retido pelo intermediário
+        $tipoRetencao = $this->dps->obterTipoRetencaoIssqn() ?? 1;
+        $this->addChild($tribMunInner, 'tpRetISSQN', (string) $tipoRetencao, true);
+
+        // Verifica se o prestador é optante do Simples Nacional ME/EPP (opSimpNac = 3)
+        $prestadorTrib = $this->dps->obterPrestador();
+        $optanteSN = $prestadorTrib->obterOptanteSimplesNacional();
+        $ehMeEpp = $optanteSN !== null && $optanteSN->valor() === 3;
+
+        // Para ME/EPP: indTotTrib não pode ser informado, mas trib precisa de tribFed ou totTrib
+        // Solução: Para ME/EPP, usar totTrib sem indTotTrib (só com pTotTribSN se aplicável)
+        // Para outros: usar totTrib com indTotTrib
         $totTribInner = $this->dom->createElement('totTrib');
-        $tribMunInner->appendChild($totTribInner);
-        // indTotTrib: 0 = Não, 1 = Sim (indica se há totalização de tributos)
-        // Por padrão, vamos usar 0 (não há totalização)
-        $this->addChild($totTribInner, 'indTotTrib', '0', true);
+        $tribInner->appendChild($totTribInner);
 
-        $dpsElement->appendChild($infDpsInner);
-        $infNfseElement->appendChild($dpsElement);
-
-        // Adiciona infNFSe ao NFSe
-        $nfseElement->appendChild($infNfseElement);
-
-        // Elemento Signature (estrutura básica - será assinado posteriormente)
-        $this->adicionarSignature($nfseElement, $infNfseElement->getAttribute('Id'));
-
-        $this->dom->appendChild($nfseElement);
-
-        // Salva o XML garantindo encoding utf-8
-        $xml = $this->dom->saveXML();
-
-        // Garante que o XML está em utf-8
-        if (!mb_check_encoding($xml, 'utf-8')) {
-            $xml = mb_convert_encoding($xml, 'utf-8', 'auto');
+        if ($ehMeEpp) {
+            // Para ME/EPP: informar pTotTribSN (percentual total de tributos do SN)
+            // Valor padrão baseado na alíquota efetiva do Simples Nacional
+            $this->addChild($totTribInner, 'pTotTribSN', '0.00', true);
+        } else {
+            // Para não-optantes ou MEI: informar indTotTrib
+            $this->addChild($totTribInner, 'indTotTrib', '0', true);
         }
-
-        return $xml;
     }
 
     /**
@@ -996,13 +1081,7 @@ class DpsXml implements DpsInterface
         }
 
         // 5. Inscrição Federal (14 caracteres) - CPF completar com 000 à esquerda
-        if ($documento instanceof Cpf) {
-            // CPF tem 11 dígitos, completar com 000 à esquerda para 14
-            $id .= str_pad($inscricao, 14, '0', STR_PAD_LEFT);
-        } else {
-            // CNPJ já tem 14 dígitos
-            $id .= str_pad($inscricao, 14, '0', STR_PAD_LEFT);
-        }
+        $id .= str_pad($inscricao, 14, '0', STR_PAD_LEFT);
 
         // 6. nNFSe (13 caracteres) - Número da NFSe
         if ($this->nNFSe === null) {
@@ -1010,12 +1089,12 @@ class DpsXml implements DpsInterface
         }
         $id .= str_pad((string) $this->nNFSe, 13, '0', STR_PAD_LEFT);
 
-        // 7. AnoMes Emis. (4 caracteres) - Ano e mês da emissão (YYYYMM)
+        // 7. AnoMes Emis. (4 caracteres) - Ano e mês da emissão (YYMM)
         $dataHoraEmissao = $this->dps->obterDataHoraEmissao();
         if ($dataHoraEmissao === null) {
             throw new InvalidArgumentException('Data e hora de emissão é obrigatória para gerar o ID da NFSe!');
         }
-        $id .= $dataHoraEmissao->format('Ym');
+        $id .= $dataHoraEmissao->format('ym');
 
         // 8. Valor do node nNFSe com 9 dígitos com trailing de zeros a esquerda
         $id .= str_pad((string) $this->nNFSe, 9, '0', STR_PAD_LEFT);

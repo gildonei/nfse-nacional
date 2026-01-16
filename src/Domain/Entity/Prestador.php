@@ -55,6 +55,7 @@ class Prestador extends Pessoa
      * @param Endereco|null $endereco
      * @param Telefone|null $telefone
      * @param OptanteSimplesNacional|null $optanteSimplesNacional
+     * @param RegimeTributacaoSimplesNacional|null $regimeTributacaoSimplesNacional
      * @param RegimeEspecialTributacaoMunicipal|null $regimeEspecialTributacao
      */
     public function __construct(
@@ -66,6 +67,7 @@ class Prestador extends Pessoa
         ?Endereco $endereco = null,
         ?Telefone $telefone = null,
         ?OptanteSimplesNacional $optanteSimplesNacional = null,
+        ?RegimeTributacaoSimplesNacional $regimeTributacaoSimplesNacional = null,
         ?RegimeEspecialTributacaoMunicipal $regimeEspecialTributacao = null
     ) {
         if ($nome !== null) {
@@ -92,6 +94,9 @@ class Prestador extends Pessoa
         }
         if ($optanteSimplesNacional !== null) {
             $this->definirOptanteSimplesNacional($optanteSimplesNacional);
+        }
+        if ($regimeTributacaoSimplesNacional !== null) {
+            $this->definirRegimeTributacaoSimplesNacional($regimeTributacaoSimplesNacional);
         }
         if ($regimeEspecialTributacao !== null) {
             $this->definirRegimeEspecialTributacao($regimeEspecialTributacao);
