@@ -2,6 +2,14 @@
 
 Biblioteca PHP para emissão de Nota Fiscal de Serviço Eletrônica (NFS-e) Nacional, seguindo os padrões da Receita Federal do Brasil.
 
+> ⚠️ **AVISO IMPORTANTE**
+>
+> - Todos os dados utilizados nos exemplos são **fictícios** e servem apenas para demonstração.
+> - Para emissão real de NFS-e, é necessário utilizar **dados reais** (CNPJ, certificado digital ICP-Brasil válido, etc.).
+> - Esta biblioteca é fornecida **"como está"**, sem garantias de qualquer tipo, expressas ou implícitas.
+> - O desenvolvedor **não se responsabiliza** por quaisquer danos ou prejuízos decorrentes do uso desta biblioteca.
+> - **Teste sempre em ambiente de homologação** antes de utilizar em produção.
+
 ## Características
 
 - ✅ Clean Architecture
@@ -92,7 +100,8 @@ src/
         └── HttpClient.php   # Cliente HTTP (Guzzle)
 
 docs/
-└── emissao-dps.php          # Exemplo completo de emissão de DPS
+├── emissao-dps.php          # Exemplo completo de emissão de DPS
+└── consulta-nfse.php        # Exemplo de consulta de NFS-e
 ```
 
 ## Uso Básico
@@ -297,6 +306,17 @@ Formato: `NFS` + Cód.Mun. (7) + Amb.Ger. (1) + Tipo de Inscrição Federal (1) 
 ### ID do infDPS (45 caracteres)
 Formato: `DPS` + Cód.Mun. (7) + Tipo de Inscrição Federal (1) + Inscrição Federal (14) + Série DPS (5) + Núm. DPS (15)
 
+### Chave de Acesso da NFS-e (50 dígitos)
+A chave de acesso é composta por:
+- Código do Município (7 dígitos)
+- Ambiente Gerador (1 dígito)
+- Tipo de Inscrição Federal (1 dígito)
+- Inscrição Federal (14 dígitos)
+- Número da NFS-e (13 dígitos)
+- Ano/Mês de Emissão (4 dígitos)
+- Valor do nNFSe (9 dígitos)
+- Dígito Verificador (1 dígito)
+
 ## Determinação Automática de TipoEmitente
 
 O campo `tpEmit` é determinado automaticamente pela comparação dos documentos:
@@ -346,6 +366,33 @@ O `SefinNacionalService` fornece métodos para integração com a API:
 
 O serviço utiliza automaticamente o certificado do emitente para autenticação SSL/TLS em todas as requisições HTTP.
 
+### Resposta da API
+
+Quando a emissão da DPS é bem-sucedida (statusCode 201), a resposta contém o campo `nfseXmlGZipB64` com o XML da NFS-e comprimido em GZip e codificado em Base64.
+
+```php
+// Verificar se a emissão foi bem-sucedida
+if ($resposta['statusCode'] === 201) {
+    $body = $resposta['body'];
+
+    if (isset($body['nfseXmlGZipB64'])) {
+        // Decodificar Base64 e descomprimir GZip
+        $xmlDecodificado = base64_decode($body['nfseXmlGZipB64'], true);
+        $xmlNfse = gzdecode($xmlDecodificado);
+
+        // $xmlNfse contém o XML completo da NFS-e
+        echo $xmlNfse;
+    }
+
+    // Outros campos disponíveis na resposta:
+    // $body['tipoAmbiente'] - 1 = Produção, 2 = Homologação
+    // $body['versaoAplicativo'] - Versão do aplicativo Sefin Nacional
+    // $body['dataHoraProcessamento'] - Data/hora do processamento
+    // $body['chaveAcesso'] - Chave de acesso da NFS-e (50 dígitos)
+    // $body['idDPS'] - ID do DPS
+}
+```
+
 ## Processamento de XML
 
 O XML gerado é processado antes do envio:
@@ -355,13 +402,33 @@ O XML gerado é processado antes do envio:
 - ✅ Compressão GZip
 - ✅ Codificação Base64
 
-## Exemplo Completo
+## Exemplos
 
-Para ver um exemplo completo e detalhado de uso, consulte o arquivo `docs/emissao-dps.php`.
+### Emissão de DPS
+
+O arquivo `docs/emissao-dps.php` contém um exemplo completo de:
+- Criação de Certificado, Emitente, Prestador e Tomador
+- Criação e configuração da DPS
+- Geração do XML
+- Assinatura digital
+- Envio para a API Sefin Nacional
+- Exibição do XML da NFS-e emitida (quando statusCode 201)
 
 ```bash
-# Executar o exemplo
+# Executar o exemplo de emissão
 php docs/emissao-dps.php
+```
+
+### Consulta de NFS-e
+
+O arquivo `docs/consulta-nfse.php` contém um exemplo de:
+- Consulta de NFS-e pela chave de acesso (50 dígitos)
+- Decodificação do XML da NFS-e (Base64 + GZip)
+- Exibição formatada do XML
+
+```bash
+# Executar o exemplo de consulta
+php docs/consulta-nfse.php
 ```
 
 ## Desenvolvimento
@@ -377,6 +444,8 @@ composer test
 ## Licença
 
 MIT License
+
+**ISENÇÃO DE RESPONSABILIDADE:** Esta biblioteca é fornecida "como está", sem garantias de qualquer tipo. O uso é de inteira responsabilidade do usuário. O desenvolvedor não se responsabiliza por erros, falhas, perdas financeiras ou quaisquer outros danos decorrentes do uso desta biblioteca.
 
 ## Autor
 
