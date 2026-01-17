@@ -6,6 +6,7 @@ namespace NfseNacional\Domain\Entity;
 
 use InvalidArgumentException;
 use DateTime;
+use NfseNacional\Domain\Enum\ListaServicosNacional;
 use NfseNacional\Domain\Enum\ModoPrestacao;
 use NfseNacional\Domain\Enum\TributacaoIssqn;
 use NfseNacional\Domain\Enum\TipoEmitente;
@@ -689,16 +690,40 @@ class Dps
     /**
      * Define o código de tributação nacional
      *
-     * @param string $codigoTributacaoNacional
+     * @param string|ListaServicosNacional $codigoTributacaoNacional Código de 6 dígitos ou enum ListaServicosNacional
      * @throws InvalidArgumentException
      * @return self
      */
-    public function definirCodigoTributacaoNacional(string $codigoTributacaoNacional): self
+    public function definirCodigoTributacaoNacional(string|ListaServicosNacional $codigoTributacaoNacional): self
     {
-        if (empty(trim($codigoTributacaoNacional))) {
+        // Se for enum, obtém o valor string
+        if ($codigoTributacaoNacional instanceof ListaServicosNacional) {
+            $this->codigoTributacaoNacional = $codigoTributacaoNacional->value;
+            return $this;
+        }
+
+        $codigo = trim($codigoTributacaoNacional);
+
+        if (empty($codigo)) {
             throw new InvalidArgumentException('Código de tributação nacional está vazio!');
         }
-        $this->codigoTributacaoNacional = $codigoTributacaoNacional;
+
+        // Valida o formato (6 dígitos numéricos)
+        if (!preg_match('/^\d{6}$/', $codigo)) {
+            throw new InvalidArgumentException('Código de tributação nacional deve ter exatamente 6 dígitos numéricos!');
+        }
+
+        // Valida se o código existe na lista de serviços nacional
+        if (!ListaServicosNacional::isValid($codigo)) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Código de tributação nacional "%s" não é válido. Utilize um código da Lista de Serviços Nacional (LC 116/2003).',
+                    $codigo
+                )
+            );
+        }
+
+        $this->codigoTributacaoNacional = $codigo;
         return $this;
     }
 

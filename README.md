@@ -69,7 +69,9 @@ src/
 │   │   ├── TipoEmissaoNfse.php
 │   │   ├── TipoEmitente.php
 │   │   ├── TributacaoIssqn.php
-│   │   └── VinculoEntrePartes.php
+│   │   ├── VinculoEntrePartes.php
+│   │   ├── ListaServicosNacional.php  # Lista de Serviços LC 116/2003
+│   │   └── ListaNbs.php               # Nomenclatura Brasileira de Serviços
 │   │
 │   ├── ValueObject/          # Value Objects
 │   │   ├── Certificado.php  # Certificado digital PKCS#12
@@ -289,6 +291,110 @@ A biblioteca utiliza enums para garantir type-safety e validação de campos:
 - `Imunidade` (2) - Imunidade
 - `ExportacaoServico` (3) - Exportação de serviço
 - `NaoIncidencia` (4) - Não Incidência
+
+### ListaServicosNacional
+
+Enum com a Lista de Serviços da LC 116/2003 para validação do Código de Tributação Nacional (cTribNac).
+
+Código de 6 dígitos no formato **IISSDD**:
+- **II** = Item (01-40) - Grupo de serviços da LC 116/2003
+- **SS** = Subitem (01-99) - Subdivisão do item
+- **DD** = Desdobro (01-99) - Detalhamento do subitem
+
+> **Nota:** Quando o código de tributação nacional (cTribNac) está vazio na tabela oficial, utiliza-se a concatenação dos campos Item + Subitem + Desdobro. Foi utilizado o prefixo "S" na lista dos serviços devido ao Item ("grupo") poder iniciar com Zeros
+
+**Exemplos de uso:**
+```php
+use NfseNacional\Domain\Enum\ListaServicosNacional;
+
+// Usando enum diretamente
+$dps->definirCodigoTributacaoNacional(ListaServicosNacional::S010106);
+
+// Obtendo a descrição
+echo ListaServicosNacional::S010106->descricao(); // "Assessoria e consultoria em informática"
+
+// Obtendo o código
+echo ListaServicosNacional::S010106->codigo(); // "010106"
+
+// Obtendo partes do código
+echo ListaServicosNacional::S010106->item();     // "01" - Item (grupo da LC 116)
+echo ListaServicosNacional::S010106->subitem();  // "01" - Subitem
+echo ListaServicosNacional::S010106->desdobro(); // "06" - Desdobro
+
+// Verificando se um código é válido
+if (ListaServicosNacional::isValid('010106')) {
+    echo "Código válido!";
+}
+
+// Buscando serviços por item (grupo)
+$servicosTI = ListaServicosNacional::byItem('01'); // Todos os serviços de informática
+```
+
+**Principais itens (grupos da LC 116/2003):**
+- `01` - Serviços de informática e congêneres
+- `04` - Serviços de saúde, assistência médica e congêneres
+- `07` - Serviços de engenharia, arquitetura, geologia
+- `08` - Serviços de educação, ensino
+- `14` - Serviços relativos a bens de terceiros
+- `17` - Serviços de apoio técnico, administrativo, jurídico, contábil
+
+### ListaNbs
+
+Enum com os códigos da Nomenclatura Brasileira de Serviços (NBS) para classificação de serviços em operações internacionais.
+
+Código de 9 dígitos no formato **S.DDGG.CC.SS**:
+- **S** = Seção (1 dígito)
+- **DD** = Divisão (2 dígitos)
+- **GG** = Grupo (2 dígitos)
+- **CC** = Classe (2 dígitos)
+- **SS** = Subclasse (2 dígitos)
+
+> **Nota:** Foi utilizado o prefixo "N" nos cases do enum pois nomes de constantes não podem iniciar com números em PHP.
+
+**Exemplos de uso:**
+```php
+use NfseNacional\Domain\Enum\ListaNbs;
+
+// Usando enum diretamente para serviços de TI
+$codigoNbs = ListaNbs::N121011000; // Consultoria em TI
+
+// Obtendo a descrição
+echo ListaNbs::N121011000->descricao(); // "Serviços de consultoria em tecnologia da informação"
+
+// Obtendo o código
+echo ListaNbs::N121011000->codigo(); // "121011000"
+
+// Obtendo partes do código
+echo ListaNbs::N121011000->secao();    // "1" - Seção
+echo ListaNbs::N121011000->divisao();  // "21" - Divisão
+echo ListaNbs::N121011000->grupo();    // "01" - Grupo
+echo ListaNbs::N121011000->classe();   // "10" - Classe
+echo ListaNbs::N121011000->subclasse(); // "00" - Subclasse
+
+// Verificando se um código é válido
+if (ListaNbs::isValid('121011000')) {
+    echo "Código NBS válido!";
+}
+
+// Buscando serviços por seção
+$servicosSecao1 = ListaNbs::bySecao('1'); // Todos os serviços da seção 1
+```
+
+**Principais divisões (Seção 1):**
+- `01` - Serviços de construção
+- `12` - Serviços financeiros
+- `16` - Serviços jurídicos e contábeis
+- `17` - Serviços de negócios e gestão
+- `18` - Serviços de telecomunicações
+- `21` - Serviços de informática (TI)
+- `22` - Serviços de seguros
+- `23` - Serviços técnicos e profissionais
+- `27` - Serviços de educação
+- `28` - Serviços de saúde
+
+**Principais divisões (Seção 2):**
+- `01` - Serviços de cessão de direitos de propriedade intelectual
+- `02` - Outros intangíveis
 
 ### SituacoesPossiveisNfse
 - `NfseGerada` (100) - NFS-e Gerada

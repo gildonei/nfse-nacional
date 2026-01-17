@@ -19,6 +19,7 @@ use NfseNacional\Domain\Entity\Emitente;
 use NfseNacional\Domain\Entity\Prestador;
 use NfseNacional\Domain\Entity\Tomador;
 use NfseNacional\Domain\Enum\AmbienteGeradorNfse;
+use NfseNacional\Domain\Enum\ListaServicosNacional;
 use NfseNacional\Domain\Enum\ModoPrestacao;
 use NfseNacional\Domain\Enum\MotivoNaoInformarNif;
 use NfseNacional\Domain\Enum\OptanteSimplesNacional;
@@ -298,7 +299,7 @@ $valorServico = $valorRecebido = 1300.00;
                         ->definirCodigoLocalPrestacao((string) $codigoMunicipio)
                         ->definirModoPrestacao(ModoPrestacao::ConsumoNoBrasil) // 0 = Desconhecido, 1 = Transfronteiriço, 2 = Consumo no Brasil, 3 = Presença Comercial no Exterior, 4 = Movimento Temporário de Pessoas Físicas
                         ->definirVinculoEntrePartes(VinculoEntrePartes::SemVinculo) // 0 = Sem vínculo, 1 = Controlada, 2 = Controladora, 3 = Coligada, 4 = Matriz, 5 = Filial ou sucursal, 6 = Outro vínculo
-                        ->definirCodigoTributacaoNacional('010601') // Código de tributação nacional (6 dígitos obrigatórios)
+                        ->definirCodigoTributacaoNacional(ListaServicosNacional::S010106) // Assessoria e consultoria em informática
                         ->definirDescricaoServico('Serviço de consultoria em tecnologia da informação')
                         ->definirValorServico($valorServico)
                         ->definirValorRecebido($valorRecebido)
@@ -637,10 +638,10 @@ $valorServico = $valorRecebido = 1300.00;
             <div class="card-body">
                 <?php
                 try {
-                // Exemplo com Profissional Autônomo
-                $prestadorPA = new Prestador(
-                    nome: 'Profissional Autônomo',
-                    documento: new Cpf('98765432100'),
+                    // Exemplo com Profissional Autônomo
+                    $prestadorPA = new Prestador(
+                        nome: 'Profissional Autônomo',
+                        documento: new Cpf('98765432100'),
                     regimeEspecialTributacao: RegimeEspecialTributacaoMunicipal::ProfissionalAutonomo
                 );
 
