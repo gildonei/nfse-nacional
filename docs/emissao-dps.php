@@ -89,7 +89,7 @@ $valorServico = $valorRecebido = 1300.00;
             <div class="card-body">
                 <?php
                 try {
-                    $caminhoCertificado = '/var/www/nfsenacional/docs/certificado.pfx'; // Substitua pelo caminho real
+                    $caminhoCertificado = 'certificado.pfx'; // Substitua pelo caminho real
                     $senhaCertificado = '12345678'; // Senha certificado
                     $certificado = new Certificado($caminhoCertificado, $senhaCertificado);
                 ?>
@@ -299,7 +299,7 @@ $valorServico = $valorRecebido = 1300.00;
                         ->definirCodigoLocalPrestacao((string) $codigoMunicipio)
                         ->definirModoPrestacao(ModoPrestacao::ConsumoNoBrasil) // 0 = Desconhecido, 1 = Transfronteiriço, 2 = Consumo no Brasil, 3 = Presença Comercial no Exterior, 4 = Movimento Temporário de Pessoas Físicas
                         ->definirVinculoEntrePartes(VinculoEntrePartes::SemVinculo) // 0 = Sem vínculo, 1 = Controlada, 2 = Controladora, 3 = Coligada, 4 = Matriz, 5 = Filial ou sucursal, 6 = Outro vínculo
-                        ->definirCodigoTributacaoNacional(ListaServicosNacional::S010106) // Assessoria e consultoria em informática
+                        ->definirCodigoTributacaoNacional(ListaServicosNacional::S010601) // Assessoria e consultoria em informática
                         ->definirDescricaoServico('Serviço de consultoria em tecnologia da informação')
                         ->definirValorServico($valorServico)
                         ->definirValorRecebido($valorRecebido)

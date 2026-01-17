@@ -308,18 +308,18 @@ Código de 6 dígitos no formato **IISSDD**:
 use NfseNacional\Domain\Enum\ListaServicosNacional;
 
 // Usando enum diretamente
-$dps->definirCodigoTributacaoNacional(ListaServicosNacional::S010106);
+$dps->definirCodigoTributacaoNacional(ListaServicosNacional::S010601);
 
 // Obtendo a descrição
-echo ListaServicosNacional::S010106->descricao(); // "Assessoria e consultoria em informática"
+echo ListaServicosNacional::S010601->descricao(); // "Assessoria e consultoria em informática"
 
 // Obtendo o código
-echo ListaServicosNacional::S010106->codigo(); // "010106"
+echo ListaServicosNacional::S010601->codigo(); // "010601"
 
 // Obtendo partes do código
-echo ListaServicosNacional::S010106->item();     // "01" - Item (grupo da LC 116)
-echo ListaServicosNacional::S010106->subitem();  // "01" - Subitem
-echo ListaServicosNacional::S010106->desdobro(); // "06" - Desdobro
+echo ListaServicosNacional::S010601->item();     // "01" - Item (grupo da LC 116)
+echo ListaServicosNacional::S010601->subitem();  // "06" - Subitem
+echo ListaServicosNacional::S010601->desdobro(); // "01" - Desdobro
 
 // Verificando se um código é válido
 if (ListaServicosNacional::isValid('010106')) {
