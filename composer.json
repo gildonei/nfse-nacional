@@ -2,7 +2,7 @@
     "name": "gildonei/nfse-nacional",
     "description": "Emissor de Nota Fiscal de Serviço Eletrônica (NFS-e) Nacional em PHP",
     "type": "library",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "license": "MIT",
     "keywords": ["nfse", "nota-fiscal", "servico", "brasil", "receita-federal"],
     "authors": [
