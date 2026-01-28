@@ -208,6 +208,43 @@ class Dps
     private ?float $percentualAliquota = null;
 
     /**
+     * Valor percentual total aproximado dos tributos
+     * @var float|null
+     */
+    private ?float $percentualTotalTributos = null;
+
+    /**
+     * Valor percentual total aproximado dos tributos federais (%)
+     * @var float|null
+     */
+    private ?float $percentualTotalTributosFederais = null;
+
+    /**
+     * Valor percentual total aproximado dos tributos estaduais (%)
+     * @var float|null
+     */
+    private ?float $percentualTotalTributosEstaduais = null;
+
+    /**
+     * Valor percentual total aproximado dos tributos municipais (%)
+     * @var float|null
+     */
+    private ?float $percentualTotalTributosMunicipais = null;
+
+    /**
+     * Indicador de informação de valor total de tributos
+     * 0 = Não informa valores estimados (Decreto 8.264/2014)
+     * @var int|null
+     */
+    private ?int $indicadorTotalTributos = null;
+
+    /**
+     * Valor percentual aproximado do total dos tributos da alíquota do Simples Nacional (%)
+     * @var float|null
+     */
+    private ?float $percentualTotalTributosSimplesNacional = null;
+
+    /**
      * Define o prestador
      *
      * @param Prestador $prestador
@@ -967,5 +1004,164 @@ class Dps
     public function obterPercentualAliquota(): ?float
     {
         return $this->percentualAliquota;
+    }
+
+    /**
+     * Define o valor percentual total aproximado dos tributos
+     * Em conformidade com o artigo 1º da Lei nº 12.741/2012
+     *
+     * @param float $percentualTotalTributos
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirPercentualTotalTributos(float $percentualTotalTributos): self
+    {
+        if ($percentualTotalTributos < 0) {
+            throw new InvalidArgumentException('Percentual total de tributos não pode ser negativo!');
+        }
+        $this->percentualTotalTributos = $percentualTotalTributos;
+        return $this;
+    }
+
+    /**
+     * Retorna o valor percentual total aproximado dos tributos
+     *
+     * @return float|null
+     */
+    public function obterPercentualTotalTributos(): ?float
+    {
+        return $this->percentualTotalTributos;
+    }
+
+    /**
+     * Define o valor percentual total aproximado dos tributos federais (%)
+     *
+     * @param float $percentualTotalTributosFederais
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirPercentualTotalTributosFederais(float $percentualTotalTributosFederais): self
+    {
+        if ($percentualTotalTributosFederais < 0) {
+            throw new InvalidArgumentException('Percentual total de tributos federais não pode ser negativo!');
+        }
+        $this->percentualTotalTributosFederais = $percentualTotalTributosFederais;
+        return $this;
+    }
+
+    /**
+     * Retorna o valor percentual total aproximado dos tributos federais (%)
+     *
+     * @return float|null
+     */
+    public function obterPercentualTotalTributosFederais(): ?float
+    {
+        return $this->percentualTotalTributosFederais;
+    }
+
+    /**
+     * Define o valor percentual total aproximado dos tributos estaduais (%)
+     *
+     * @param float $percentualTotalTributosEstaduais
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirPercentualTotalTributosEstaduais(float $percentualTotalTributosEstaduais): self
+    {
+        if ($percentualTotalTributosEstaduais < 0) {
+            throw new InvalidArgumentException('Percentual total de tributos estaduais não pode ser negativo!');
+        }
+        $this->percentualTotalTributosEstaduais = $percentualTotalTributosEstaduais;
+        return $this;
+    }
+
+    /**
+     * Retorna o valor percentual total aproximado dos tributos estaduais (%)
+     *
+     * @return float|null
+     */
+    public function obterPercentualTotalTributosEstaduais(): ?float
+    {
+        return $this->percentualTotalTributosEstaduais;
+    }
+
+    /**
+     * Define o valor percentual total aproximado dos tributos municipais (%)
+     *
+     * @param float $percentualTotalTributosMunicipais
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirPercentualTotalTributosMunicipais(float $percentualTotalTributosMunicipais): self
+    {
+        if ($percentualTotalTributosMunicipais < 0) {
+            throw new InvalidArgumentException('Percentual total de tributos municipais não pode ser negativo!');
+        }
+        $this->percentualTotalTributosMunicipais = $percentualTotalTributosMunicipais;
+        return $this;
+    }
+
+    /**
+     * Retorna o valor percentual total aproximado dos tributos municipais (%)
+     *
+     * @return float|null
+     */
+    public function obterPercentualTotalTributosMunicipais(): ?float
+    {
+        return $this->percentualTotalTributosMunicipais;
+    }
+
+    /**
+     * Define o indicador de informação de valor total de tributos
+     * Se informado indica que o emitente opta por não informar nenhum valor estimado para os Tributos (Decreto 8.264/2014)
+     * 0 = Não
+     *
+     * @param int $indicadorTotalTributos
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirIndicadorTotalTributos(int $indicadorTotalTributos): self
+    {
+        if ($indicadorTotalTributos !== 0 && $indicadorTotalTributos !== 1) {
+            throw new InvalidArgumentException('Indicador de total de tributos deve ser 0 ou 1!');
+        }
+        $this->indicadorTotalTributos = $indicadorTotalTributos;
+        return $this;
+    }
+
+    /**
+     * Retorna o indicador de informação de valor total de tributos
+     *
+     * @return int|null
+     */
+    public function obterIndicadorTotalTributos(): ?int
+    {
+        return $this->indicadorTotalTributos;
+    }
+
+    /**
+     * Define o valor percentual aproximado do total dos tributos da alíquota do Simples Nacional (%)
+     *
+     * @param float $percentualTotalTributosSimplesNacional
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirPercentualTotalTributosSimplesNacional(float $percentualTotalTributosSimplesNacional): self
+    {
+        if ($percentualTotalTributosSimplesNacional < 0) {
+            throw new InvalidArgumentException('Percentual total de tributos do Simples Nacional não pode ser negativo!');
+        }
+        $this->percentualTotalTributosSimplesNacional = $percentualTotalTributosSimplesNacional;
+        return $this;
+    }
+
+    /**
+     * Retorna o valor percentual aproximado do total dos tributos da alíquota do Simples Nacional (%)
+     *
+     * @return float|null
+     */
+    public function obterPercentualTotalTributosSimplesNacional(): ?float
+    {
+        return $this->percentualTotalTributosSimplesNacional;
     }
 }

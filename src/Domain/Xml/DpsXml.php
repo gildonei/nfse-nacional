@@ -708,19 +708,79 @@ class DpsXml implements DpsInterface
         $optanteSN = $prestadorTrib->obterOptanteSimplesNacional();
         $ehMeEpp = $optanteSN !== null && $optanteSN->valor() === 3;
 
-        // Para ME/EPP: indTotTrib não pode ser informado, mas trib precisa de tribFed ou totTrib
-        // Solução: Para ME/EPP, usar totTrib sem indTotTrib (só com pTotTribSN se aplicável)
-        // Para outros: usar totTrib com indTotTrib
+        // totTrib - Total de Tributos
         $totTribInner = $this->dom->createElement('totTrib');
         $tribInner->appendChild($totTribInner);
 
-        if ($ehMeEpp) {
-            // Para ME/EPP: informar pTotTribSN (percentual total de tributos do SN)
-            // Valor padrão baseado na alíquota efetiva do Simples Nacional
-            $this->addChild($totTribInner, 'pTotTribSN', '0.00', true);
-        } else {
-            // Para não-optantes ou MEI: informar indTotTrib
-            $this->addChild($totTribInner, 'indTotTrib', '0', true);
+        // Verifica se há percentuais de tributos federais, estaduais ou municipais informados
+        $temPercentuaisTributos = $this->dps->obterPercentualTotalTributosFederais() !== null
+            || $this->dps->obterPercentualTotalTributosEstaduais() !== null
+            || $this->dps->obterPercentualTotalTributosMunicipais() !== null;
+
+        // Se houver percentuais de tributos federais, estaduais ou municipais, criar nó pTotTrib
+        if ($temPercentuaisTributos) {
+            $pTotTribInner = $this->dom->createElement('pTotTrib');
+            $totTribInner->appendChild($pTotTribInner);
+
+            // pTotTribFed - Valor percentual total aproximado dos tributos federais (%)
+            // Obrigatório (1-1) quando pTotTrib é informado
+            if ($this->dps->obterPercentualTotalTributosFederais() !== null) {
+                $this->addChild($pTotTribInner, 'pTotTribFed', $this->formatarValor($this->dps->obterPercentualTotalTributosFederais()), true);
+            } else {
+                // Se pTotTrib existe, pTotTribFed é obrigatório
+                $this->addChild($pTotTribInner, 'pTotTribFed', '0.00', true);
+            }
+
+            // pTotTribEst - Valor percentual total aproximado dos tributos estaduais (%)
+            // Obrigatório (1-1) quando pTotTrib é informado
+            if ($this->dps->obterPercentualTotalTributosEstaduais() !== null) {
+                $this->addChild($pTotTribInner, 'pTotTribEst', $this->formatarValor($this->dps->obterPercentualTotalTributosEstaduais()), true);
+            } else {
+                // Se pTotTrib existe, pTotTribEst é obrigatório
+                $this->addChild($pTotTribInner, 'pTotTribEst', '0.00', true);
+            }
+
+            // pTotTribMun - Valor percentual total aproximado dos tributos municipais (%)
+            // Obrigatório (1-1) quando pTotTrib é informado
+            if ($this->dps->obterPercentualTotalTributosMunicipais() !== null) {
+                $this->addChild($pTotTribInner, 'pTotTribMun', $this->formatarValor($this->dps->obterPercentualTotalTributosMunicipais()), true);
+            } else {
+                // Se pTotTrib existe, pTotTribMun é obrigatório
+                $this->addChild($pTotTribInner, 'pTotTribMun', '0.00', true);
+            }
+        }
+
+        // indTotTrib - Indicador de informação de valor total de tributos (opcional 0-1)
+        // Se informado indica que o emitente opta por não informar nenhum valor estimado para os Tributos (Decreto 8.264/2014)
+        // 0 = Não
+        // Para ME/EPP: indTotTrib não pode ser informado
+        // NOTA: indTotTrib não pode ser usado quando há pTotTrib (percentuais detalhados)
+        if (!$ehMeEpp && !$temPercentuaisTributos) {
+            if ($this->dps->obterIndicadorTotalTributos() !== null) {
+                $this->addChild($totTribInner, 'indTotTrib', (string) $this->dps->obterIndicadorTotalTributos());
+            } else {
+                // Se não for ME/EPP e não houver percentuais informados, usar valor padrão
+                $this->addChild($totTribInner, 'indTotTrib', '0', true);
+            }
+        }
+
+        // pTotTribSN - Valor percentual aproximado do total dos tributos da alíquota do Simples Nacional (%)
+        // Opcional (0-1)
+        // NOTA: pTotTribSN NÃO pode ser usado quando há pTotTrib (percentuais detalhados federais/estaduais/municipais)
+        // São mutuamente exclusivos: ou usa pTotTrib (detalhado) OU usa pTotTribSN (Simples Nacional)
+        if (!$temPercentuaisTributos) {
+            if ($ehMeEpp) {
+                // Para ME/EPP: informar pTotTribSN (percentual total de tributos do SN)
+                if ($this->dps->obterPercentualTotalTributosSimplesNacional() !== null) {
+                    $this->addChild($totTribInner, 'pTotTribSN', $this->formatarValor($this->dps->obterPercentualTotalTributosSimplesNacional()), true);
+                } else {
+                    // Valor padrão baseado na alíquota efetiva do Simples Nacional
+                    $this->addChild($totTribInner, 'pTotTribSN', '0.00', true);
+                }
+            } elseif ($this->dps->obterPercentualTotalTributosSimplesNacional() !== null) {
+                // Para não-ME/EPP, mas se informado, incluir
+                $this->addChild($totTribInner, 'pTotTribSN', $this->formatarValor($this->dps->obterPercentualTotalTributosSimplesNacional()));
+            }
         }
     }
 
