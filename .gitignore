@@ -8,6 +8,7 @@
 Thumbs.db
 .history/
 docs/emissao-dps-interno.php
+docs/*-interno.php
 .env
 *.pfx
 *.p12
