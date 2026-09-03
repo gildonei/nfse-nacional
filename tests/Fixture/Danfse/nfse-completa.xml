@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  <infNFSe Id="NFS42054075060066100012600000000000000000000000000001">
+    <xLocEmi>Florianópolis</xLocEmi>
+    <xLocPrestacao>Florianópolis</xLocPrestacao>
+    <nNFSe>123</nNFSe>
+    <cLocIncid>4205407</cLocIncid>
+    <xLocIncid>Florianópolis</xLocIncid>
+    <xTribNac>Serviços de apoio administrativo</xTribNac>
+    <xNBS>Serviços combinados de escritório</xNBS>
+    <ambGer>2</ambGer>
+    <cStat>100</cStat>
+    <dhProc>2026-08-20T15:20:30-03:00</dhProc>
+    <emit>
+      <CNPJ>50600661000126</CNPJ><xNome>Empresa Prestadora Ltda</xNome>
+      <enderNac><xLgr>Rua das Flores</xLgr><nro>100</nro><xBairro>Centro</xBairro><cMun>4205407</cMun><UF>SC</UF><CEP>88010000</CEP></enderNac>
+      <fone>4833334444</fone><email>prestador@example.com</email>
+    </emit>
+    <valores><vTotalRet>15.00</vTotalRet><vLiq>985.00</vLiq><vBC>1000.00</vBC><pAliqAplic>5.00</pAliqAplic><vISSQN>50.00</vISSQN></valores>
+    <IBSCBS>
+      <cLocalidadeIncid>4205407</cLocalidadeIncid><xLocalidadeIncid>Florianópolis / SC</xLocalidadeIncid>
+      <valores><vBC>980.00</vBC><uf><pRedAliqUF>0.00</pRedAliqUF><pIBSUF>0.10</pIBSUF><pAliqEfetUF>0.10</pAliqEfetUF></uf><mun><pRedAliqMun>0.00</pRedAliqMun><pIBSMun>0.10</pIBSMun><pAliqEfetMun>0.10</pAliqEfetMun></mun><fed><pRedAliqCBS>0.00</pRedAliqCBS><pCBS>0.90</pCBS><pAliqEfetCBS>0.90</pAliqEfetCBS></fed></valores>
+      <totCIBS><gIBS><gIBSMunTot><vIBSMun>1.00</vIBSMun></gIBSMunTot><gIBSUFTot><vIBSUF>1.00</vIBSUF></gIBSUFTot><vIBSTot>2.00</vIBSTot></gIBS><gCBS><vCBS>9.00</vCBS></gCBS><vTotNF>996.00</vTotNF></totCIBS>
+    </IBSCBS>
+    <DPS versao="1.01"><infDPS Id="DPS420540750600661000126000010000000000000000001">
+      <tpAmb>2</tpAmb><dhEmi>2026-08-20T15:19:00-03:00</dhEmi><verAplic>1.0.0</verAplic><serie>1</serie><nDPS>321</nDPS><dCompet>2026-08-20</dCompet><tpEmit>1</tpEmit><cLocEmi>4205407</cLocEmi>
+      <prest><CNPJ>50600661000126</CNPJ><IM>123456</IM><fone>4833334444</fone><regTrib><opSimpNac>3</opSimpNac><regApTribSN>1</regApTribSN></regTrib></prest>
+      <toma><CNPJ>12345678000190</CNPJ><IM>654321</IM><xNome>Cliente Tomador Ltda</xNome><end><endNac><cMun>4205407</cMun><CEP>88020000</CEP><UF>SC</UF></endNac><xLgr>Avenida Central</xLgr><nro>200</nro><xCpl>Sala 10</xCpl><xBairro>Centro</xBairro></end><fone>48999998888</fone><email>cliente@example.com</email></toma>
+      <serv><locPrest><cLocPrestacao>4205407</cLocPrestacao></locPrest><cServ><cTribNac>170202</cTribNac><cTribMun>001</cTribMun><cNBS>118064000</cNBS><xDescServ>Serviços de regularização fundiária urbana e apoio administrativo.</xDescServ></cServ><infoCompl><xInfComp>Referente ao contrato 123.</xInfComp><docRef>DOC-001</docRef></infoCompl></serv>
+      <valores><vServPrest><vServ>1000.00</vServ></vServPrest><vDescCondIncond><vDescIncond>0.00</vDescIncond><vDescCond>0.00</vDescCond></vDescCondIncond><trib><tribMun><tribISSQN>1</tribISSQN><tpRetISSQN>1</tpRetISSQN></tribMun><tribFed><piscofins><vPis>6.50</vPis><vCofins>30.00</vCofins><tpRetPisCofins>8</tpRetPisCofins></piscofins><vRetIRRF>10.00</vRetIRRF><vRetCP>0.00</vRetCP><vRetCSLL>5.00</vRetCSLL></tribFed><totTrib><pTotTrib><pTotTribFed>13.45</pTotTribFed><pTotTribEst>0.00</pTotTribEst><pTotTribMun>5.00</pTotTribMun></pTotTrib></totTrib></trib></valores>
+      <IBSCBS><finNFSe>0</finNFSe><cIndOp>100001</cIndOp><valores><trib><gIBSCBS><CST>000</CST><cClassTrib>000001</cClassTrib></gIBSCBS></trib></valores></IBSCBS>
+    </infDPS></DPS>
+  </infNFSe>
+</NFSe>
