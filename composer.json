@@ -2,7 +2,6 @@
     "name": "gildonei/nfse-nacional",
     "description": "Emissor de Nota Fiscal de Serviço Eletrônica (NFS-e) Nacional em PHP",
     "type": "library",
-    "version": "1.0.5",
     "license": "MIT",
     "keywords": ["nfse", "nota-fiscal", "servico", "brasil", "receita-federal"],
     "authors": [
@@ -12,8 +11,15 @@
         }
     ],
     "require": {
+        "ext-dom": "*",
+        "ext-gd": "*",
+        "ext-libxml": "*",
+        "ext-mbstring": "*",
+        "ext-zlib": "*",
         "php": "^8.3",
         "guzzlehttp/guzzle": "^7.0",
+        "mpdf/mpdf": "^8.2",
+        "mpdf/qrcode": "^1.2",
         "robrichards/xmlseclibs": "^3.1",
         "symfony/dotenv": "^7.4",
         "symfony/var-dumper": "^7.4"
@@ -30,6 +36,9 @@
         "psr-4": {
             "NfseNacional\\Tests\\": "tests/"
         }
+    },
+    "scripts": {
+        "test": "phpunit --testdox"
     },
     "config": {
         "sort-packages": true,

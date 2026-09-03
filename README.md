@@ -508,6 +508,61 @@ O XML gerado é processado antes do envio:
 - ✅ Compressão GZip
 - ✅ Codificação Base64
 
+## Geração do DANFSe v2.0
+
+O pacote gera localmente o Documento Auxiliar da NFS-e a partir do XML autorizado, conforme a Nota Técnica SE/CGNFS-e nº 008, versão 1.02. O resultado é um PDF A4, retrato e de uma página, com QR Code para consulta no Portal Nacional.
+
+```php
+use NfseNacional\Application\Service\DanfseService;
+
+$service = new DanfseService();
+$pdf = $service->gerarPdf($xmlNfse);
+
+file_put_contents('DANFSe.pdf', $pdf);
+```
+
+Em uma resposta HTTP, envie os bytes com o tipo correto de conteúdo:
+
+```php
+header('Content-Type: application/pdf');
+header('Content-Disposition: inline; filename="DANFSe.pdf"');
+
+echo $service->gerarPdf($xmlNfse);
+```
+
+Também é possível gerar diretamente de um arquivo:
+
+```php
+$pdf = $service->gerarPdfDeArquivo('/caminho/nfse.xml');
+
+file_put_contents('/caminho/DANFSe.pdf', $pdf);
+```
+
+Para representar uma situação posterior à emissão ou incluir o canhoto opcional:
+
+```php
+use NfseNacional\Domain\Danfse\DanfseOptions;
+use NfseNacional\Domain\Danfse\DanfseStatus;
+
+$options = new DanfseOptions(
+    status: DanfseStatus::Cancelada,
+    incluirCanhoto: true,
+    validarEsquema: true,
+);
+
+$pdf = $service->gerarPdf($xmlNfse, $options);
+```
+
+APIs disponíveis:
+
+- `lerXml()` e `lerArquivo()`: retornam os dados normalizados do DANFSe;
+- `gerarHtml()` e `gerarHtmlDeArquivo()`: retornam a representação HTML;
+- `gerarPdf()` e `gerarPdfDeArquivo()`: retornam os bytes do PDF.
+
+O pacote contém os esquemas XSD 1.00 e 1.01 e os domínios oficiais de municípios IBGE e países ISO2. A validação XSD é opcional porque alguns documentos históricos podem usar versões diferentes.
+
+As fontes Arial e Microsoft Sans Serif não são redistribuídas por restrições de licença. Arquivos licenciados podem ser informados por `DanfseOptions`; sem eles, o mPDF utiliza uma fonte Unicode compatível.
+
 ## Exemplos
 
 ### Emissão de DPS
