@@ -521,10 +521,21 @@ $pdf = $service->gerarPdf($xmlNfse);
 file_put_contents('DANFSe.pdf', $pdf);
 ```
 
+Em uma resposta HTTP, envie os bytes com o tipo correto de conteúdo:
+
+```php
+header('Content-Type: application/pdf');
+header('Content-Disposition: inline; filename="DANFSe.pdf"');
+
+echo $service->gerarPdf($xmlNfse);
+```
+
 Também é possível gerar diretamente de um arquivo:
 
 ```php
 $pdf = $service->gerarPdfDeArquivo('/caminho/nfse.xml');
+
+file_put_contents('/caminho/DANFSe.pdf', $pdf);
 ```
 
 Para representar uma situação posterior à emissão ou incluir o canhoto opcional:
