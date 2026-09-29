@@ -37,6 +37,18 @@ class Tomador extends Pessoa
     private ?MotivoNaoInformarNif $motivoNaoInformarNif = null;
 
     /**
+     * NIF — Número de Identificação Fiscal do tomador no exterior
+     *
+     * O `<toma>` exige UM identificador entre CNPJ, CPF, NIF e cNaoNIF. Sem
+     * este campo, o tomador estrangeiro que TEM identificação fiscal no país
+     * dele não tinha como ser identificado: sobrava declarar que não há NIF,
+     * o que seria falso.
+     *
+     * @var string|null
+     */
+    private ?string $nif = null;
+
+    /**
      * Construtor
      *
      * @param string|null $nome
@@ -141,6 +153,37 @@ class Tomador extends Pessoa
     }
 
     /**
+     * Define o NIF do tomador no exterior
+     *
+     * Mutuamente exclusivo com o motivo de não informar o NIF: informar os
+     * dois faria o XML carregar duas identificações onde o schema aceita uma.
+     *
+     * @param string $nif
+     * @throws \InvalidArgumentException
+     * @return self
+     */
+    public function definirNif(string $nif): self
+    {
+        $nif = trim($nif);
+        if ($nif === '') {
+            throw new \InvalidArgumentException('NIF não pode ser vazio!');
+        }
+        $this->nif = $nif;
+        $this->motivoNaoInformarNif = null;
+        return $this;
+    }
+
+    /**
+     * Retorna o NIF do tomador no exterior
+     *
+     * @return string|null
+     */
+    public function obterNif(): ?string
+    {
+        return $this->nif;
+    }
+
+    /**
      * Define o motivo de não informar NIF
      *
      * @param MotivoNaoInformarNif $motivoNaoInformarNif
@@ -149,6 +192,7 @@ class Tomador extends Pessoa
     public function definirMotivoNaoInformarNif(MotivoNaoInformarNif $motivoNaoInformarNif): self
     {
         $this->motivoNaoInformarNif = $motivoNaoInformarNif;
+        $this->nif = null;
         return $this;
     }
 

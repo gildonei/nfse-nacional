@@ -6,7 +6,11 @@ namespace NfseNacional\Domain\Entity;
 
 use InvalidArgumentException;
 use DateTime;
+use NfseNacional\Domain\Enum\EnvioMdic;
 use NfseNacional\Domain\Enum\ListaServicosNacional;
+use NfseNacional\Domain\Enum\MecanismoApoioComexPrestador;
+use NfseNacional\Domain\Enum\MecanismoApoioComexTomador;
+use NfseNacional\Domain\Enum\MovimentacaoTemporariaBens;
 use NfseNacional\Domain\Enum\ModoPrestacao;
 use NfseNacional\Domain\Enum\TributacaoIssqn;
 use NfseNacional\Domain\Enum\TipoEmitente;
@@ -127,7 +131,7 @@ class Dps
      * Código do país de prestação
      * @var int|null
      */
-    private ?int $codigoPaisPrestacao = null;
+    private ?string $codigoPaisPrestacao = null;
 
     /**
      * Modo de prestação
@@ -140,6 +144,63 @@ class Dps
      * @var VinculoEntrePartes|null
      */
     private ?VinculoEntrePartes $vinculoEntrePartes = null;
+
+    /**
+     * Código da moeda da transação, conforme tabela do BACEN (comExt/tpMoeda)
+     *
+     * @var string|null
+     */
+    private ?string $codigoMoeda = null;
+
+    /**
+     * Valor do serviço na moeda estrangeira informada em tpMoeda
+     * (comExt/vServMoeda)
+     *
+     * @var float|null
+     */
+    private ?float $valorServicoMoeda = null;
+
+    /**
+     * Mecanismo de apoio ao comércio exterior do prestador (comExt/mecAFComexP)
+     *
+     * @var MecanismoApoioComexPrestador|null
+     */
+    private ?MecanismoApoioComexPrestador $mecanismoApoioComexPrestador = null;
+
+    /**
+     * Mecanismo de apoio ao comércio exterior do tomador (comExt/mecAFComexT)
+     *
+     * @var MecanismoApoioComexTomador|null
+     */
+    private ?MecanismoApoioComexTomador $mecanismoApoioComexTomador = null;
+
+    /**
+     * Vínculo com movimentação temporária de bens (comExt/movTempBens)
+     *
+     * @var MovimentacaoTemporariaBens|null
+     */
+    private ?MovimentacaoTemporariaBens $movimentacaoTemporariaBens = null;
+
+    /**
+     * Compartilhar a NFS-e com o MDIC (comExt/mdic)
+     *
+     * @var EnvioMdic|null
+     */
+    private ?EnvioMdic $envioMdic = null;
+
+    /**
+     * Número da Declaração de Importação averbada (comExt/nDI) — opcional
+     *
+     * @var string|null
+     */
+    private ?string $numeroDeclaracaoImportacao = null;
+
+    /**
+     * Número do Registro de Exportação averbado (comExt/nRE) — opcional
+     *
+     * @var string|null
+     */
+    private ?string $numeroRegistroExportacao = null;
 
     /**
      * Código tributação nacional
@@ -661,11 +722,22 @@ class Dps
     /**
      * Define o código do país de prestação
      *
-     * @param int $codigoPaisPrestacao
+     * O código é o da tabela ISO, com DUAS LETRAS ('US', 'PT', 'DE') — é o que
+     * o `TSCodPaisISO` do schema aceita (`[A-Z]{2}`). O tipo era `int`, e
+     * nenhum inteiro podia gerar documento válido.
+     *
+     * @param string $codigoPaisPrestacao Código ISO alfa-2, ex.: 'US'
+     * @throws InvalidArgumentException
      * @return self
      */
-    public function definirCodigoPaisPrestacao(int $codigoPaisPrestacao): self
+    public function definirCodigoPaisPrestacao(string $codigoPaisPrestacao): self
     {
+        $codigoPaisPrestacao = strtoupper(trim($codigoPaisPrestacao));
+        if (preg_match('/^[A-Z]{2}$/', $codigoPaisPrestacao) !== 1) {
+            throw new InvalidArgumentException(
+                'Código do país deve ser ISO alfa-2, com duas letras (ex.: US)!'
+            );
+        }
         $this->codigoPaisPrestacao = $codigoPaisPrestacao;
         return $this;
     }
@@ -673,9 +745,9 @@ class Dps
     /**
      * Retorna o código do país de prestação
      *
-     * @return int|null
+     * @return string|null
      */
-    public function obterCodigoPaisPrestacao(): ?int
+    public function obterCodigoPaisPrestacao(): ?string
     {
         return $this->codigoPaisPrestacao;
     }
@@ -722,6 +794,204 @@ class Dps
     public function obterVinculoEntrePartes(): ?VinculoEntrePartes
     {
         return $this->vinculoEntrePartes;
+    }
+
+    /**
+     * Define o código da moeda da transação (tabela do BACEN)
+     *
+     * Vai em `comExt/tpMoeda`. Só faz sentido em operação com o exterior: é a
+     * moeda em que o cliente efetivamente pagou, enquanto `valorServico`
+     * continua sendo o valor em reais.
+     *
+     * São os TRÊS DÍGITOS da tabela do BACEN (`TSCodMoeda` aceita `[0-9]{3}`),
+     * e não a sigla: o dólar dos EUA é `220`, não `USD`.
+     *
+     * @param string $codigoMoeda Código numérico do BACEN, ex.: '220'
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirCodigoMoeda(string $codigoMoeda): self
+    {
+        $codigoMoeda = trim($codigoMoeda);
+        if (preg_match('/^[0-9]{3}$/', $codigoMoeda) !== 1) {
+            throw new InvalidArgumentException(
+                'Código da moeda deve ter 3 dígitos, conforme a tabela do BACEN (ex.: 220 para o dólar dos EUA)!'
+            );
+        }
+        $this->codigoMoeda = $codigoMoeda;
+        return $this;
+    }
+
+    /**
+     * Retorna o código da moeda da transação
+     *
+     * @return string|null
+     */
+    public function obterCodigoMoeda(): ?string
+    {
+        return $this->codigoMoeda;
+    }
+
+    /**
+     * Define o valor do serviço na moeda estrangeira
+     *
+     * Vai em `comExt/vServMoeda`. É o valor na moeda de `tpMoeda`, e não o
+     * convertido: os dois convivem na mesma nota, e trocar um pelo outro é
+     * justamente o erro que o campo existe para evitar.
+     *
+     * @param float $valorServicoMoeda
+     * @throws InvalidArgumentException
+     * @return self
+     */
+    public function definirValorServicoMoeda(float $valorServicoMoeda): self
+    {
+        if ($valorServicoMoeda < 0) {
+            throw new InvalidArgumentException('Valor do serviço em moeda estrangeira não pode ser negativo!');
+        }
+        $this->valorServicoMoeda = $valorServicoMoeda;
+        return $this;
+    }
+
+    /**
+     * Retorna o valor do serviço na moeda estrangeira
+     *
+     * @return float|null
+     */
+    public function obterValorServicoMoeda(): ?float
+    {
+        return $this->valorServicoMoeda;
+    }
+
+    /**
+     * Define o mecanismo de apoio ao comércio exterior do prestador
+     *
+     * @param MecanismoApoioComexPrestador $mecanismo
+     * @return self
+     */
+    public function definirMecanismoApoioComexPrestador(MecanismoApoioComexPrestador $mecanismo): self
+    {
+        $this->mecanismoApoioComexPrestador = $mecanismo;
+        return $this;
+    }
+
+    /**
+     * Retorna o mecanismo de apoio ao comércio exterior do prestador
+     *
+     * @return MecanismoApoioComexPrestador|null
+     */
+    public function obterMecanismoApoioComexPrestador(): ?MecanismoApoioComexPrestador
+    {
+        return $this->mecanismoApoioComexPrestador;
+    }
+
+    /**
+     * Define o mecanismo de apoio ao comércio exterior do tomador
+     *
+     * @param MecanismoApoioComexTomador $mecanismo
+     * @return self
+     */
+    public function definirMecanismoApoioComexTomador(MecanismoApoioComexTomador $mecanismo): self
+    {
+        $this->mecanismoApoioComexTomador = $mecanismo;
+        return $this;
+    }
+
+    /**
+     * Retorna o mecanismo de apoio ao comércio exterior do tomador
+     *
+     * @return MecanismoApoioComexTomador|null
+     */
+    public function obterMecanismoApoioComexTomador(): ?MecanismoApoioComexTomador
+    {
+        return $this->mecanismoApoioComexTomador;
+    }
+
+    /**
+     * Define o vínculo com movimentação temporária de bens
+     *
+     * @param MovimentacaoTemporariaBens $movimentacaoTemporariaBens
+     * @return self
+     */
+    public function definirMovimentacaoTemporariaBens(MovimentacaoTemporariaBens $movimentacaoTemporariaBens): self
+    {
+        $this->movimentacaoTemporariaBens = $movimentacaoTemporariaBens;
+        return $this;
+    }
+
+    /**
+     * Retorna o vínculo com movimentação temporária de bens
+     *
+     * @return MovimentacaoTemporariaBens|null
+     */
+    public function obterMovimentacaoTemporariaBens(): ?MovimentacaoTemporariaBens
+    {
+        return $this->movimentacaoTemporariaBens;
+    }
+
+    /**
+     * Define se a NFS-e será compartilhada com o MDIC
+     *
+     * @param EnvioMdic $envioMdic
+     * @return self
+     */
+    public function definirEnvioMdic(EnvioMdic $envioMdic): self
+    {
+        $this->envioMdic = $envioMdic;
+        return $this;
+    }
+
+    /**
+     * Retorna se a NFS-e será compartilhada com o MDIC
+     *
+     * @return EnvioMdic|null
+     */
+    public function obterEnvioMdic(): ?EnvioMdic
+    {
+        return $this->envioMdic;
+    }
+
+    /**
+     * Define o número da Declaração de Importação averbada
+     *
+     * @param string $numeroDeclaracaoImportacao
+     * @return self
+     */
+    public function definirNumeroDeclaracaoImportacao(string $numeroDeclaracaoImportacao): self
+    {
+        $this->numeroDeclaracaoImportacao = trim($numeroDeclaracaoImportacao);
+        return $this;
+    }
+
+    /**
+     * Retorna o número da Declaração de Importação averbada
+     *
+     * @return string|null
+     */
+    public function obterNumeroDeclaracaoImportacao(): ?string
+    {
+        return $this->numeroDeclaracaoImportacao;
+    }
+
+    /**
+     * Define o número do Registro de Exportação averbado
+     *
+     * @param string $numeroRegistroExportacao
+     * @return self
+     */
+    public function definirNumeroRegistroExportacao(string $numeroRegistroExportacao): self
+    {
+        $this->numeroRegistroExportacao = trim($numeroRegistroExportacao);
+        return $this;
+    }
+
+    /**
+     * Retorna o número do Registro de Exportação averbado
+     *
+     * @return string|null
+     */
+    public function obterNumeroRegistroExportacao(): ?string
+    {
+        return $this->numeroRegistroExportacao;
     }
 
     /**

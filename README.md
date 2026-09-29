@@ -218,6 +218,45 @@ $resposta = $sefinService->enviarDps($dpsXml);
 print_r($resposta);
 ```
 
+### Exportação de serviço
+
+Quando o tomador está no exterior e o serviço se consuma fora do país, a DPS
+muda em três pontos. Exemplo completo em `docs/emissao-dps-exportacao.php`.
+
+**O tomador não tem CPF/CNPJ.** O `<toma>` aceita um identificador entre CNPJ,
+CPF, NIF e `cNaoNIF` — os dois últimos existem para quem está fora:
+
+```php
+$tomador = new Tomador(email: new Email('billing@acme.com'));
+$tomador->definirNome('ACME Inc.');
+$tomador->definirNif('ATU12345678');                          // se houver NIF
+// ou, se não houver:
+$tomador->definirMotivoNaoInformarNif(MotivoNaoInformarNif::NaoExigenciaNIF);
+```
+
+**O local de prestação é o país, não o município.** São mutuamente exclusivos
+no schema; informar o país é o bastante:
+
+```php
+$dps->definirCodigoPaisPrestacao('US');   // ISO alfa-2
+```
+
+**A moeda e o valor na moeda estrangeira.** O `valorServico` continua em reais
+— é o que se declara; o `comExt` carrega o que o cliente efetivamente pagou:
+
+```php
+$dps->definirCodigoMoeda('220')           // 3 dígitos do BACEN: 220 = dólar dos EUA
+    ->definirValorServicoMoeda(100.00)    // o valor em dólar
+    ->definirValorServico(515.75)         // o mesmo valor em reais
+    ->definirModoPrestacao(ModoPrestacao::Transfronteirico)
+    ->definirTributacaoIssqn(TributacaoIssqn::ExportacaoServico);
+```
+
+O bloco `comExt` é montado sozinho quando há país de prestação **ou** moeda
+definidos. Os campos obrigatórios que não forem informados recebem o valor
+neutro do schema (`Nenhum`, `Nao`, `NaoEnviar`), porque o bloco é recusado
+inteiro se vier incompleto. Venda nacional não gera o bloco.
+
 ## Enums Disponíveis
 
 A biblioteca utiliza enums para garantir type-safety e validação de campos:
@@ -291,6 +330,29 @@ A biblioteca utiliza enums para garantir type-safety e validação de campos:
 - `Imunidade` (2) - Imunidade
 - `ExportacaoServico` (3) - Exportação de serviço
 - `NaoIncidencia` (4) - Não Incidência
+
+### MecanismoApoioComexPrestador
+Mecanismo de apoio/fomento ao Comércio Exterior usado pelo **prestador**
+(`comExt/mecAFComexP`). Quem não usa nenhum informa `Nenhum` — o campo é
+obrigatório dentro do bloco.
+- `Desconhecido` ('00'), `Nenhum` ('01'), `AccAdiantamentoContratoCambio` ('02'),
+  `AceAdiantamentoCambiaisEntregues` ('03'), `BndesEximPosEmbarque` ('04'),
+  `BndesEximPreEmbarque` ('05'), `FgeFundoGarantiaExportacao` ('06'),
+  `ProexEqualizacao` ('07'), `ProexFinanciamento` ('08')
+
+### MecanismoApoioComexTomador
+O mesmo, pelo lado do **tomador** (`comExt/mecAFComexT`) — 27 valores, de
+`Desconhecido` ('00') a `Zpe` ('26').
+
+### MovimentacaoTemporariaBens
+- `Desconhecido` ('0') - Desconhecido (tipo não informado na nota de origem)
+- `Nao` ('1') - Não
+- `VinculadaDeclaracaoImportacao` ('2') - Vinculada - Declaração de Importação
+- `VinculadaDeclaracaoExportacao` ('3') - Vinculada - Declaração de Exportação
+
+### EnvioMdic
+- `NaoEnviar` ('0') - Não enviar para o MDIC
+- `Enviar` ('1') - Enviar para o MDIC
 
 ### ListaServicosNacional
 

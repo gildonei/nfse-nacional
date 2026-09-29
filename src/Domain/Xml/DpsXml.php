@@ -11,11 +11,17 @@ use NfseNacional\Domain\Contract\DpsInterface;
 use NfseNacional\Domain\Entity\Dps;
 use NfseNacional\Domain\Entity\Emitente;
 use NfseNacional\Domain\Enum\AmbienteGeradorNfse;
+use NfseNacional\Domain\Enum\EnvioMdic;
+use NfseNacional\Domain\Enum\MecanismoApoioComexPrestador;
+use NfseNacional\Domain\Enum\ModoPrestacao;
+use NfseNacional\Domain\Enum\MecanismoApoioComexTomador;
+use NfseNacional\Domain\Enum\MovimentacaoTemporariaBens;
 use NfseNacional\Domain\Enum\ProcessoEmissao;
 use NfseNacional\Domain\Enum\SituacoesPossiveisNfse;
 use NfseNacional\Domain\Enum\TipoBeneficioMunicipal;
 use NfseNacional\Domain\Enum\TipoEmitente;
 use NfseNacional\Domain\Enum\TipoEmissaoNfse;
+use NfseNacional\Domain\Enum\VinculoEntrePartes;
 use NfseNacional\Domain\ValueObject\Cpf;
 use NfseNacional\Domain\ValueObject\Cnpj;
 
@@ -420,6 +426,81 @@ class DpsXml implements DpsInterface
     }
 
     /**
+     * Monta o grupo `comExt` — comércio exterior.
+     *
+     * O bloco é opcional (`minOccurs="0"`), mas é ele que diz que a operação
+     * é com o exterior: modo de prestação, vínculo entre as partes, e —
+     * sobretudo — a MOEDA e o VALOR na moeda estrangeira. Sem ele, uma venda
+     * cobrada em dólar sai como se tivesse sido cobrada em reais, e o
+     * `tribISSQN = 3` (exportação de serviço) fica sem a operação que o
+     * justifica.
+     *
+     * O gatilho é a operação TOCAR O EXTERIOR — país de prestação definido, ou
+     * moeda estrangeira definida —, e não o modo de prestação. A diferença não
+     * é de gosto: `mdPrestacao` tem o valor `ConsumoNoBrasil`, que é usado em
+     * venda nacional (está assim no `docs/emissao-dps.php`), e disparar por
+     * ele faria toda emissão nacional existente passar a exigir `tpMoeda` e
+     * quebrar sem que nada tivesse mudado do lado de quem chama.
+     *
+     * Uma vez presente, o `TCComExterior` exige TODOS os seus filhos menos
+     * `nDI` e `nRE`. Os que o chamador não definir recebem o valor neutro
+     * previsto no schema (`Nenhum`, `Nao`, `NaoEnviar`) em vez de ficarem de
+     * fora — bloco incompleto é recusado inteiro, e o erro do validador
+     * aponta para o pai, não para o campo que faltou.
+     *
+     * @param DOMElement $servInner
+     * @return void
+     */
+    private function montarComExterior(DOMElement $servInner): void
+    {
+        if ($this->dps->obterCodigoPaisPrestacao() === null
+            && $this->dps->obterCodigoMoeda() === null) {
+            return;
+        }
+
+        $comExtInner = $this->dom->createElement('comExt');
+        $servInner->appendChild($comExtInner);
+
+        $modoPrestacao = $this->dps->obterModoPrestacao() ?? ModoPrestacao::Desconhecido;
+        $this->addChild($comExtInner, 'mdPrestacao', (string) $modoPrestacao->valor(), true);
+
+        $vinculo = $this->dps->obterVinculoEntrePartes() ?? VinculoEntrePartes::SemVinculo;
+        $this->addChild($comExtInner, 'vincPrest', (string) $vinculo->valor(), true);
+
+        $this->addChild($comExtInner, 'tpMoeda', $this->dps->obterCodigoMoeda(), true);
+        $this->addChild(
+            $comExtInner,
+            'vServMoeda',
+            $this->formatarValor($this->dps->obterValorServicoMoeda()),
+            true
+        );
+
+        $mecPrestador = $this->dps->obterMecanismoApoioComexPrestador()
+            ?? MecanismoApoioComexPrestador::Nenhum;
+        $this->addChild($comExtInner, 'mecAFComexP', $mecPrestador->valor(), true);
+
+        $mecTomador = $this->dps->obterMecanismoApoioComexTomador()
+            ?? MecanismoApoioComexTomador::Nenhum;
+        $this->addChild($comExtInner, 'mecAFComexT', $mecTomador->valor(), true);
+
+        $movTempBens = $this->dps->obterMovimentacaoTemporariaBens()
+            ?? MovimentacaoTemporariaBens::Nao;
+        $this->addChild($comExtInner, 'movTempBens', $movTempBens->valor(), true);
+
+        // nDI e nRE são os dois únicos opcionais do grupo
+        if ($this->dps->obterNumeroDeclaracaoImportacao() !== null) {
+            $this->addChild($comExtInner, 'nDI', $this->dps->obterNumeroDeclaracaoImportacao());
+        }
+
+        if ($this->dps->obterNumeroRegistroExportacao() !== null) {
+            $this->addChild($comExtInner, 'nRE', $this->dps->obterNumeroRegistroExportacao());
+        }
+
+        $mdic = $this->dps->obterEnvioMdic() ?? EnvioMdic::NaoEnviar;
+        $this->addChild($comExtInner, 'mdic', $mdic->valor(), true);
+    }
+
+    /**
      * Monta a estrutura do infDPS
      *
      * @param DOMElement $infDpsInner Elemento infDPS
@@ -568,13 +649,21 @@ class DpsXml implements DpsInterface
             $tomaInner = $this->dom->createElement('toma');
             $infDpsInner->appendChild($tomaInner);
 
+            /* A identificação é um <xs:choice> e vem PRIMEIRO na sequência do
+               TCInfoPessoa: CNPJ, CPF, NIF ou cNaoNIF. O tomador do exterior
+               cai nos dois últimos, e era justamente ele que saía inválido —
+               o cNaoNIF era emitido no fim do bloco, depois de xNome, e o
+               validador recusava com "xNome: this element is not expected". */
             $documento = $tomador->obterDocumento();
-            if ($documento !== null) {
-                if ($documento instanceof Cnpj) {
-                    $this->addChild($tomaInner, 'CNPJ', $documento->obterNumero(), true);
-                } elseif ($documento instanceof Cpf) {
-                    $this->addChild($tomaInner, 'CPF', $documento->obterNumero(), true);
-                }
+            if ($documento instanceof Cnpj) {
+                $this->addChild($tomaInner, 'CNPJ', $documento->obterNumero(), true);
+            } elseif ($documento instanceof Cpf) {
+                $this->addChild($tomaInner, 'CPF', $documento->obterNumero(), true);
+            } elseif ($tomador->obterNif() !== null) {
+                $this->addChild($tomaInner, 'NIF', $tomador->obterNif(), true);
+            } elseif ($tomador->obterMotivoNaoInformarNif() !== null) {
+                $motivo = $tomador->obterMotivoNaoInformarNif();
+                $this->addChild($tomaInner, 'cNaoNIF', (string) $motivo->valor(), true);
             }
 
             if ($tomador->obterCmc() !== null) {
@@ -618,13 +707,6 @@ class DpsXml implements DpsInterface
             if ($email !== null) {
                 $this->addChild($tomaInner, 'email', $email->obterEndereco());
             }
-
-            // cNaoNIF - Motivo de não informar NIF
-            $motivoNaoInformarNif = $tomador->obterMotivoNaoInformarNif();
-            if ($motivoNaoInformarNif !== null) {
-                /** @var \NfseNacional\Domain\Enum\MotivoNaoInformarNif $motivoNaoInformarNif */
-                $this->addChild($tomaInner, 'cNaoNIF', (string) $motivoNaoInformarNif->valor());
-            }
         }
 
         // Serviço
@@ -633,13 +715,16 @@ class DpsXml implements DpsInterface
 
         $locPrestInner = $this->dom->createElement('locPrest');
         $servInner->appendChild($locPrestInner);
-        $this->addChild($locPrestInner, 'cLocPrestacao', $this->dps->obterCodigoLocalPrestacao(), true);
-
+        /* TCLocPrest é um <xs:choice>: ou o município, ou o país — nunca os
+           dois. Emitir o município como obrigatório e ACRESCENTAR o país
+           tornava impossível a exportação de serviço, em que não existe
+           município de prestação: ou estourava por falta do município, ou o
+           XSD recusava o país como elemento inesperado. */
         if ($this->dps->obterCodigoPaisPrestacao() !== null) {
-            $this->addChild($locPrestInner, 'cPaisPrestacao', (string) $this->dps->obterCodigoPaisPrestacao());
+            $this->addChild($locPrestInner, 'cPaisPrestacao', $this->dps->obterCodigoPaisPrestacao(), true);
+        } else {
+            $this->addChild($locPrestInner, 'cLocPrestacao', $this->dps->obterCodigoLocalPrestacao(), true);
         }
-
-        // Nota: mdPrestacao não faz parte da estrutura locPrest no schema NFS-e Nacional
 
         $cServInner = $this->dom->createElement('cServ');
         $servInner->appendChild($cServInner);
@@ -658,6 +743,9 @@ class DpsXml implements DpsInterface
         if ($this->dps->obterCodigoInternoContribuinte() !== null) {
             $this->addChild($cServInner, 'cIntContrib', $this->dps->obterCodigoInternoContribuinte());
         }
+
+        // Comércio exterior — a sequência do TCServ é locPrest, cServ, comExt
+        $this->montarComExterior($servInner);
 
         // Valores
         $valoresInner = $this->dom->createElement('valores');
